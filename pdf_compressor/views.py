@@ -7,12 +7,11 @@ from rest_framework.request import Request
 from django.http import HttpResponse
 from .serializers import PDFFileSerializer
 from .utils import compress_pdf
-from .pdf_utils import process_pdf_with_summaries, PDFSection
+from .pdf_utils import process_pdf_with_summaries
 import logging
 import traceback
 import io
-from typing import Union, Optional, List
-import json
+from typing import Union, Optional
 import asyncio
 
 logger = logging.getLogger(__name__)
@@ -166,7 +165,7 @@ class PDFSummarizerView(APIView):
         }
         return Response(context, status=status_code, template_name=self.template_name)
 
-    def post(self, request: Request) -> Response:
+    def post(self, request: Request) -> Union[Response, HttpResponse]:
         """
         Handles PDF file upload and summarization.
         """
@@ -217,25 +216,18 @@ class PDFSummarizerView(APIView):
                 # Process PDF and generate summaries using event loop
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
-                sections = loop.run_until_complete(process_pdf_with_summaries(pdf_file))
+                annotated_pdf = loop.run_until_complete(process_pdf_with_summaries(pdf_file))
                 loop.close()
                 
                 logger.info("PDF summarization successful")
                 
-                # Return the summarized sections
-                return Response({
-                    'title': 'PDF Summary',
-                    'filename': pdf_file.name,
-                    'sections': [
-                        {
-                            'text': section.text,
-                            'summary': section.summary,
-                            'page': section.page + 1,  # 1-based page numbers
-                            'position': section.position
-                        }
-                        for section in sections
-                    ]
-                }, template_name=self.template_name)
+                # Return the annotated PDF as a download
+                response = HttpResponse(
+                    annotated_pdf.getvalue(),
+                    content_type='application/pdf'
+                )
+                response['Content-Disposition'] = f'attachment; filename="annotated_{pdf_file.name}"'
+                return response
 
             except Exception as e:
                 logger.error(f"Error summarizing PDF: {str(e)}")

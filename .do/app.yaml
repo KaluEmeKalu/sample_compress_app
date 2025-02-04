@@ -6,7 +6,7 @@ services:
       branch: main
       repo_clone_url: ${_REPO_URL}  # Will be replaced by actual repository URL
     build_command: pip install -r requirements.txt
-    run_command: gunicorn summit_project.wsgi:application --bind 0.0.0.0:8080 --workers 3 --log-level debug
+    run_command: gunicorn summit_project.wsgi:application --bind 0.0.0.0:8080 --workers 3 --worker-class=aiohttp.worker.GunicornWebWorker --log-level debug
     envs:
       - key: DJANGO_SECRET_KEY
         scope: RUN_TIME
@@ -32,6 +32,9 @@ services:
       - key: OPENAI_API_KEY
         scope: RUN_TIME
         type: SECRET
+      - key: PYTHONPATH
+        scope: RUN_TIME
+        value: "/app"
     http_port: 8080
     instance_count: 1
     instance_size_slug: basic-xs

@@ -1,13 +1,14 @@
 from typing import List, Dict, Any, Tuple
 import io
 import logging
-from PyPDF2 import PdfReader
+from PyPDF2 import PdfReader, PdfWriter
 import openai
 from django.conf import settings
 import os
 from dotenv import load_dotenv
 import asyncio
 from functools import partial
+from datetime import datetime
 
 # Load environment variables
 load_dotenv()
@@ -24,7 +25,7 @@ class PDFSection:
         self.position = position  # (x0, y0, x1, y1)
         self.summary: str = ""
 
-def extract_text_with_positions(pdf_file: io.BytesIO) -> List[PDFSection]:
+def extract_text_with_positions(pdf_file: io.BytesIO) -> Tuple[List[PDFSection], PdfReader]:
     """
     Extract text from PDF with position information
     
@@ -32,7 +33,7 @@ def extract_text_with_positions(pdf_file: io.BytesIO) -> List[PDFSection]:
         pdf_file: BytesIO object containing the PDF
         
     Returns:
-        List of PDFSection objects containing text and position information
+        Tuple of (List of PDFSection objects, PdfReader object)
     """
     try:
         sections: List[PDFSection] = []
@@ -78,7 +79,7 @@ def extract_text_with_positions(pdf_file: io.BytesIO) -> List[PDFSection]:
             if current_text:
                 sections.append(PDFSection(current_text.strip(), page_num, current_position))
         
-        return sections
+        return sections, reader
     except Exception as e:
         logger.error(f"Error extracting text from PDF: {str(e)}")
         raise Exception(f"Error extracting text from PDF: {str(e)}")
@@ -112,7 +113,23 @@ async def summarize_text(text: str) -> str:
         logger.error(f"Error summarizing text: {str(e)}")
         return "Error generating summary"
 
-async def process_pdf_with_summaries(pdf_file: io.BytesIO) -> List[PDFSection]:
+def create_annotation(writer: PdfWriter, page_num: int, text: str, rect: Tuple[float, float, float, float]) -> Dict:
+    """Create a PDF annotation dictionary."""
+    return {
+        '/Type': '/Annot',
+        '/Subtype': '/Text',
+        '/F': 4,  # Print the annotation
+        '/Contents': text,
+        '/Rect': [rect[0], rect[1], rect[0] + 200, rect[1] + 50],  # Position in the margin
+        '/P': writer.pages[page_num],
+        '/T': f'Summary {datetime.now().strftime("%H:%M:%S")}',
+        '/C': [1, 1, 0],  # Yellow color
+        '/CA': 1,  # Opacity
+        '/Border': [0, 0, 2],  # Border width
+        '/M': datetime.now().strftime("D:%Y%m%d%H%M%S"),
+    }
+
+async def process_pdf_with_summaries(pdf_file: io.BytesIO) -> io.BytesIO:
     """
     Process PDF file and generate summaries for each section
     
@@ -120,11 +137,11 @@ async def process_pdf_with_summaries(pdf_file: io.BytesIO) -> List[PDFSection]:
         pdf_file: BytesIO object containing the PDF
         
     Returns:
-        List of PDFSection objects with summaries
+        BytesIO object containing the annotated PDF
     """
     try:
         # Run synchronous PDF extraction in executor
-        sections = await run_in_executor(extract_text_with_positions, pdf_file)
+        sections, reader = await run_in_executor(extract_text_with_positions, pdf_file)
         
         # Generate summaries for each section concurrently
         summary_tasks = []
@@ -139,7 +156,38 @@ async def process_pdf_with_summaries(pdf_file: io.BytesIO) -> List[PDFSection]:
         for section, task in summary_tasks:
             section.summary = await task
         
-        return sections
+        # Create new PDF with annotations
+        writer = PdfWriter()
+        
+        # Copy all pages from the original PDF
+        for page in reader.pages:
+            writer.add_page(page)
+        
+        # Add annotations for each section
+        for section in sections:
+            if section.summary:
+                # Create annotation in the margin
+                margin_x = 50  # Left margin position
+                margin_y = section.position[1]  # Align with text vertically
+                annotation = create_annotation(
+                    writer,
+                    section.page,
+                    section.summary,
+                    (margin_x, margin_y, margin_x + 200, margin_y + 50)
+                )
+                
+                # Add annotation to the page
+                if '/Annots' in writer.pages[section.page]:
+                    writer.pages[section.page]['/Annots'].append(annotation)
+                else:
+                    writer.pages[section.page]['/Annots'] = [annotation]
+        
+        # Write the annotated PDF to a buffer
+        output_buffer = io.BytesIO()
+        writer.write(output_buffer)
+        output_buffer.seek(0)
+        
+        return output_buffer
     except Exception as e:
         logger.error(f"Error processing PDF: {str(e)}")
         raise Exception(f"Error processing PDF: {str(e)}")
