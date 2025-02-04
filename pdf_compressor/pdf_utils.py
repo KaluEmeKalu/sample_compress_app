@@ -116,7 +116,7 @@ async def summarize_text(text: str) -> str:
         logger.error(f"Error summarizing text: {str(e)}")
         return "Error generating summary"
 
-def create_summary_sidebar(c: canvas.Canvas, summaries: List[Tuple[int, str]], page_height: float):
+def create_summary_sidebar(c: canvas.Canvas, summaries: List[Tuple[int, PDFSection]], page_height: float):
     """Create a sidebar with numbered summaries"""
     # Draw sidebar background
     c.setFillColorRGB(0.95, 0.95, 0.95)  # Light gray
@@ -128,10 +128,15 @@ def create_summary_sidebar(c: canvas.Canvas, summaries: List[Tuple[int, str]], p
     y = page_height - 50
     
     for i, (_, summary) in enumerate(summaries):
+        # Get the section and its summary
+        section = summary[1]
+        if not section.summary:
+            continue
+            
         # Split summary into title and content
-        parts = summary.split('\n')
+        parts = section.summary.split('\n')
         title = parts[0].replace('Title: ', '')
-        content = parts[1].replace('Summary: ', '') if len(parts) > 1 else summary
+        content = parts[1].replace('Summary: ', '') if len(parts) > 1 else section.summary
         
         # Draw number
         c.setFillColorRGB(0.2, 0.4, 0.8)  # Blue
