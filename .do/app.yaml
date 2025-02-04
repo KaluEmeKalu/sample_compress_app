@@ -29,6 +29,9 @@ services:
       - key: DJANGO_LOG_LEVEL
         scope: RUN_TIME
         value: "DEBUG"
+      - key: OPENAI_API_KEY
+        scope: RUN_TIME
+        type: SECRET
     http_port: 8080
     instance_count: 1
     instance_size_slug: basic-xs

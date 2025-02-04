@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Summarizer</title>
+    <style>
+        :root {
+            --margin-width: 300px;
+            --primary-color: #007bff;
+            --secondary-color: #6c757d;
+            --background-color: #f8f9fa;
+            --border-color: #dee2e6;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            background-color: var(--background-color);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .upload-form {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .form-group input[type="file"] {
+            display: block;
+            width: 100%;
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background-color: white;
+        }
+
+        .submit-btn {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .submit-btn:hover {
+            background-color: #0056b3;
+        }
+
+        .error-message {
+            color: #dc3545;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+
+        .document-view {
+            display: flex;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            min-height: 500px;
+        }
+
+        .margin-notes {
+            width: var(--margin-width);
+            background-color: #f1f1f1;
+            padding: 20px;
+            border-right: 1px solid var(--border-color);
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .content {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .summary-note {
+            background-color: white;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            font-size: 14px;
+        }
+
+        .summary-note .page {
+            color: var(--secondary-color);
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+
+        .summary-note .text {
+            color: var(--primary-color);
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .text-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            position: relative;
+        }
+
+        .text-section:hover {
+            background-color: #f8f9fa;
+        }
+
+        .text-section .page {
+            position: absolute;
+            top: -10px;
+            right: 10px;
+            background-color: var(--primary-color);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading-text {
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+
+        @media (max-width: 768px) {
+            .document-view {
+                flex-direction: column;
+            }
+
+            .margin-notes {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid var(--border-color);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>{{ title }}</h1>
+            <p>{{ description }}</p>
+        </div>
+
+        {% if not sections %}
+        <div class="upload-form">
+            {% if error %}
+                <div class="error-message">{{ error }}</div>
+            {% endif %}
+            <form action="/api/summarize/" method="post" enctype="multipart/form-data" onsubmit="showLoading()">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="pdf_file">Select PDF File:</label>
+                    <input type="file" id="pdf_file" name="pdf_file" accept=".pdf" required>
+                </div>
+                <button type="submit" class="submit-btn">Generate Summary</button>
+                <div id="loading" class="loading">
+                    <p class="loading-text">Analyzing PDF and generating summaries... Please wait.</p>
+                </div>
+            </form>
+        </div>
+        {% else %}
+        <div class="document-view">
+            <div class="margin-notes">
+                <h2>Summary Notes</h2>
+                {% for section in sections %}
+                <div class="summary-note" onclick="scrollToSection({{ section.page }})">
+                    <div class="page">Page {{ section.page }}</div>
+                    <div class="text">{{ section.summary }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="content">
+                <h2>{{ filename }}</h2>
+                {% for section in sections %}
+                <div class="text-section" id="page-{{ section.page }}">
+                    <div class="page">Page {{ section.page }}</div>
+                    {{ section.text }}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+            document.querySelector('.submit-btn').disabled = true;
+        }
+
+        function scrollToSection(page) {
+            const section = document.getElementById(`page-${page}`);
+            if (section) {
+                section.scrollIntoView({ behavior: 'smooth' });
+                section.style.backgroundColor = '#e3f2fd';
+                setTimeout(() => {
+                    section.style.backgroundColor = '';
+                }, 2000);
+            }
+        }
+    </script>
+</body>
+</html>
