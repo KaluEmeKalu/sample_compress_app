@@ -37,23 +37,23 @@ class PDFCompressorView(APIView):
         """
         Renders the file upload form.
         """
-        serializer = PDFFileSerializer()
         return Response({
-            'serializer': serializer,
+            'serializer': PDFFileSerializer(),
             'title': 'PDF Compression API',
             'description': 'Upload a PDF file to compress it.'
-        }, template_name='pdf_compressor/index.html')
+        }, template_name=self.template_name)
 
     def render_form_with_error(self, error_message, status_code=400):
         """
         Helper method to render form with error message
         """
-        return Response({
+        context = {
             'serializer': PDFFileSerializer(),
             'title': 'PDF Compression API',
             'description': 'Upload a PDF file to compress it.',
             'error': error_message
-        }, status=status_code, template_name='pdf_compressor/index.html')
+        }
+        return Response(context, status=status_code, template_name=self.template_name)
 
     def post(self, request):
         """
@@ -106,6 +106,7 @@ class PDFCompressorView(APIView):
                 compressed_pdf = compress_pdf(pdf_file)
                 logger.info("PDF compression successful")
                 
+                # Set response headers for file download
                 response = Response(
                     compressed_pdf.getvalue(),
                     content_type='application/pdf',
@@ -113,9 +114,11 @@ class PDFCompressorView(APIView):
                 )
                 response['Content-Disposition'] = f'attachment; filename="compressed_{pdf_file.name}"'
                 return response
+
             except Exception as e:
                 logger.error(f"Error compressing PDF: {str(e)}")
                 logger.error(traceback.format_exc())
+                # Return error response with template
                 return self.render_form_with_error(
                     "Error compressing PDF. Please ensure the file is not corrupted.",
                     status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -124,6 +127,7 @@ class PDFCompressorView(APIView):
         except Exception as e:
             logger.error(f"Unexpected error: {str(e)}")
             logger.error(traceback.format_exc())
+            # Return error response with template
             return self.render_form_with_error(
                 "An unexpected error occurred. Please try again.",
                 status.HTTP_500_INTERNAL_SERVER_ERROR
