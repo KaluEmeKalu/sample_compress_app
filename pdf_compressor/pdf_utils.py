@@ -119,25 +119,20 @@ async def summarize_text(text: str) -> str:
 def create_summary_sidebar(c: canvas.Canvas, summaries: List[Tuple[int, PDFSection]], page_height: float):
     """Create a sidebar with numbered summaries"""
     # Constants for layout
-    SIDEBAR_WIDTH = 200  # Wider sidebar for better readability
-    LEFT_MARGIN = 30
-    RIGHT_MARGIN = 20
-    TOP_MARGIN = 50
-    CIRCLE_RADIUS = 8
-    CIRCLE_MARGIN = 15
-    TEXT_MARGIN = 45
-    TITLE_FONT_SIZE = 12
-    CONTENT_FONT_SIZE = 10
-    LINE_HEIGHT = 14
-    SECTION_SPACING = 20
+    SIDEBAR_WIDTH = 160  # Even narrower sidebar to match reference
+    LEFT_MARGIN = 35  # Adjusted left margin
+    RIGHT_MARGIN = 15
+    TOP_MARGIN = 50  # Slightly less top margin
+    BOX_SIZE = 12  # Smaller number boxes
+    BOX_MARGIN = 8  # Less space before box
+    LINE_HEIGHT = 11  # Tighter line spacing
+    SECTION_SPACING = 12  # Less space between sections
+    TITLE_SIZE = 10  # Font size for titles
+    CONTENT_SIZE = 9  # Font size for content
     
-    # Draw sidebar background with solid white background
+    # Draw white background for the sidebar
     c.setFillColorRGB(1, 1, 1)  # Pure white
     c.rect(LEFT_MARGIN, TOP_MARGIN, SIDEBAR_WIDTH, page_height - (TOP_MARGIN + LEFT_MARGIN), fill=1)
-    
-    # Draw sidebar border
-    c.setStrokeColorRGB(0.8, 0.8, 0.8)  # Light gray border
-    c.rect(LEFT_MARGIN, TOP_MARGIN, SIDEBAR_WIDTH, page_height - (TOP_MARGIN + LEFT_MARGIN))
     
     # Start position for first summary
     y = page_height - (TOP_MARGIN + LINE_HEIGHT)
@@ -151,25 +146,32 @@ def create_summary_sidebar(c: canvas.Canvas, summaries: List[Tuple[int, PDFSecti
         title = parts[0].replace('Title: ', '')
         content = parts[1].replace('Summary: ', '') if len(parts) > 1 else section.summary
         
-        # Draw number circle with more prominent blue
-        c.setFillColorRGB(0.1, 0.4, 0.9)  # Brighter blue
-        circle_x = LEFT_MARGIN + CIRCLE_MARGIN + CIRCLE_RADIUS
-        circle_y = y - CIRCLE_RADIUS
-        c.circle(circle_x, circle_y, CIRCLE_RADIUS, fill=1)
+        # Draw small square box with number
+        c.setFillColorRGB(0.15, 0.35, 0.7)  # Adjusted blue color to match reference
+        box_x = LEFT_MARGIN + BOX_MARGIN
+        box_y = y - BOX_SIZE
+        c.rect(box_x, box_y, BOX_SIZE, BOX_SIZE, fill=1)
         
-        # Draw number with larger font
-        c.setFillColorRGB(1, 1, 1)  # White
-        c.setFont("Helvetica-Bold", 11)  # Larger font for number
-        number = str(i + 1)  # Start from 1 instead of 0
-        number_width = c.stringWidth(number, "Helvetica-Bold", 11)
-        number_x = circle_x - (number_width / 2)
-        number_y = circle_y - 4  # Adjusted for larger font
+        # Draw number
+        c.setFillColorRGB(1, 1, 1)  # White text
+        c.setFont("Helvetica-Bold", 8)  # Even smaller font for better fit
+        number = str(i + 1)
+        number_width = c.stringWidth(number, "Helvetica-Bold", 8)
+        number_x = box_x + (BOX_SIZE - number_width) / 2
+        number_y = box_y + 3  # Adjusted for better vertical centering
         c.drawString(number_x, number_y, number)
         
-        # Draw title with stronger emphasis
-        c.setFillColorRGB(0.1, 0.1, 0.1)  # Almost black for stronger contrast
-        c.setFont("Helvetica-Bold", TITLE_FONT_SIZE + 1)  # Slightly larger
-        c.setStrokeColorRGB(0.1, 0.1, 0.1)  # Match stroke color
+        # Calculate text position
+        text_x = LEFT_MARGIN + BOX_MARGIN + BOX_SIZE + 8  # Text starts after box
+        
+        # Draw title with proper alignment
+        c.setFillColorRGB(0.1, 0.1, 0.1)  # Slightly softer black
+        c.setFont("Helvetica-Bold", TITLE_SIZE)  # Use defined title font size
+        
+        # Word wrap title
+        wrapped_title = []
+        current_line = ""
+        max_width = SIDEBAR_WIDTH - (text_x - LEFT_MARGIN + 5)  # Slightly narrower for text
         text_x = LEFT_MARGIN + TEXT_MARGIN
         max_width = SIDEBAR_WIDTH - (TEXT_MARGIN + RIGHT_MARGIN)
         
@@ -196,12 +198,36 @@ def create_summary_sidebar(c: canvas.Canvas, summaries: List[Tuple[int, PDFSecti
         # Add spacing between title and content
         y -= LINE_HEIGHT / 2
         
-        # Draw content with improved formatting
-        c.setFillColorRGB(0.3, 0.3, 0.3)  # Slightly lighter than title for hierarchy
-        c.setFont("Helvetica", CONTENT_FONT_SIZE)
+        # Draw content
+        c.setFillColorRGB(0.3, 0.3, 0.3)  # Lighter gray for content
+        c.setFont("Helvetica", CONTENT_SIZE)  # Use defined content font size
         
-        # Add extra spacing before content
-        y -= LINE_HEIGHT / 2
+        # Add minimal spacing between title and content
+        y -= 6  # Reduced gap between title and content
+        
+        # Word wrap content with proper alignment
+        wrapped_content = []
+        current_line = ""
+        max_width = SIDEBAR_WIDTH - (text_x - LEFT_MARGIN + 5)  # Match title width
+        
+        for word in content.split():
+            test_line = current_line + (" " if current_line else "") + word
+            if c.stringWidth(test_line, "Helvetica", 10) <= max_width:
+                current_line = test_line
+            else:
+                if current_line:
+                    wrapped_content.append(current_line)
+                current_line = word
+        if current_line:
+            wrapped_content.append(current_line)
+        
+        # Draw wrapped content with minimal spacing
+        for line in wrapped_content:
+            c.drawString(text_x, y, line)  # Use same text_x for consistent alignment
+            y -= 10  # Very tight line spacing for content
+        
+        # Add minimal space between sections
+        y -= 14  # Reduced space between sections to match reference
         
         # Word wrap content with improved spacing
         wrapped_content = []
@@ -350,10 +376,13 @@ async def process_pdf_with_summaries(pdf_file: io.BytesIO) -> io.BytesIO:
                 create_summary_sidebar(c, page_sections, letter[1])
                 c.save()
                 
-                # Merge sidebar with main page
+                # Merge sidebar with main page (sidebar first, then content)
                 packet.seek(0)
                 sidebar = PdfReader(packet)
-                writer.pages[i].merge_page(sidebar.pages[0], over=True)  # Ensure sidebar appears on top
+                sidebar_page = sidebar.pages[0]
+                # Create a new page with sidebar first
+                new_page = writer.pages[i]
+                new_page.merge_page(sidebar_page)
         
         # Write to buffer
         output_buffer = io.BytesIO()
