@@ -16,6 +16,14 @@ from functools import partial
 from datetime import datetime
 import traceback
 import sys
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import Paragraph
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from io import BytesIO
 
 # Load environment variables
 load_dotenv()
@@ -36,9 +44,7 @@ class PDFSection:
         self.summary: str = ""
 
 def extract_text_with_positions(pdf_file: io.BytesIO) -> List[PDFSection]:
-    """
-    Extract text from PDF with position information
-    """
+    """Extract text from PDF with position information"""
     try:
         sections: List[PDFSection] = []
         reader = PdfReader(pdf_file)
@@ -94,9 +100,7 @@ def run_in_executor(func, *args):
     return loop.run_in_executor(None, partial(func, *args))
 
 async def summarize_text(text: str) -> str:
-    """
-    Summarize text using OpenAI API
-    """
+    """Summarize text using OpenAI API"""
     try:
         client = openai.AsyncOpenAI(api_key=os.getenv('OPENAI_API_KEY'))
         response = await client.chat.completions.create(
@@ -112,8 +116,48 @@ async def summarize_text(text: str) -> str:
         logger.error(f"Error summarizing text: {str(e)}")
         return "Error generating summary"
 
+def create_summary_sidebar(c: canvas.Canvas, summaries: List[Tuple[int, str]], page_height: float):
+    """Create a sidebar with numbered summaries"""
+    # Draw sidebar background
+    c.setFillColorRGB(0.95, 0.95, 0.95)  # Light gray
+    c.rect(20, 20, 180, page_height - 40, fill=1)
+    
+    # Set up styles for summaries
+    c.setFillColorRGB(0, 0, 0)  # Black text
+    c.setFont("Helvetica-Bold", 12)
+    y = page_height - 50
+    
+    for i, (_, summary) in enumerate(summaries):
+        # Split summary into title and content
+        parts = summary.split('\n')
+        title = parts[0].replace('Title: ', '')
+        content = parts[1].replace('Summary: ', '') if len(parts) > 1 else summary
+        
+        # Draw number
+        c.setFillColorRGB(0.2, 0.4, 0.8)  # Blue
+        c.circle(35, y + 8, 10, fill=1)
+        c.setFillColorRGB(1, 1, 1)  # White
+        c.drawString(31 if i < 10 else 28, y + 4, str(i))
+        
+        # Draw title and content
+        c.setFillColorRGB(0, 0, 0)  # Black
+        c.setFont("Helvetica-Bold", 10)
+        title_width = 160
+        wrapped_title = [title[i:i+30] for i in range(0, len(title), 30)]
+        for line in wrapped_title:
+            c.drawString(50, y, line)
+            y -= 12
+        
+        c.setFont("Helvetica", 9)
+        wrapped_content = [content[i:i+35] for i in range(0, len(content), 35)]
+        for line in wrapped_content:
+            c.drawString(50, y, line)
+            y -= 12
+        
+        y -= 10  # Space between summaries
+
 def create_highlight_annotation(writer: PdfWriter, page_num: int, rect: Tuple[float, float, float, float]) -> DictionaryObject:
-    """Create a highlight annotation."""
+    """Create a highlight annotation"""
     highlight = DictionaryObject()
     highlight.update({
         NameObject("/Type"): NameObject("/Annot"),
@@ -131,15 +175,10 @@ def create_highlight_annotation(writer: PdfWriter, page_num: int, rect: Tuple[fl
         ]),
         NameObject("/C"): ArrayObject([
             FloatObject(1),  # Yellow highlight
-            FloatObject(1),
-            FloatObject(0)
+            FloatObject(0.9),
+            FloatObject(0.2)
         ]),
         NameObject("/CA"): NumberObject(0.3),  # Opacity
-        NameObject("/Border"): ArrayObject([
-            NumberObject(0),
-            NumberObject(0),
-            NumberObject(0)
-        ]),
         NameObject("/AP"): DictionaryObject({
             NameObject("/N"): NullObject()
         })
@@ -147,9 +186,9 @@ def create_highlight_annotation(writer: PdfWriter, page_num: int, rect: Tuple[fl
     return highlight
 
 def create_number_annotation(writer: PdfWriter, page_num: int, number: int, position: Tuple[float, float]) -> DictionaryObject:
-    """Create a number annotation."""
+    """Create a number annotation"""
     number_box = DictionaryObject()
-    box_size = 15.0  # Use float for consistency
+    box_size = 16.0
     number_box.update({
         NameObject("/Type"): NameObject("/Annot"),
         NameObject("/Subtype"): NameObject("/Square"),
@@ -161,9 +200,9 @@ def create_number_annotation(writer: PdfWriter, page_num: int, number: int, posi
             FloatObject(position[1] + box_size)
         ]),
         NameObject("/C"): ArrayObject([
-            FloatObject(0),  # Blue box
-            FloatObject(0.5),
-            FloatObject(1)
+            FloatObject(0.2),  # Blue box
+            FloatObject(0.4),
+            FloatObject(0.8)
         ]),
         NameObject("/Contents"): createStringObject(str(number)),
         NameObject("/CA"): NumberObject(1),
@@ -172,63 +211,14 @@ def create_number_annotation(writer: PdfWriter, page_num: int, number: int, posi
             NumberObject(0),
             NumberObject(1)
         ]),
-        NameObject("/T"): createStringObject(f"Section {number}"),
-        NameObject("/F"): NumberObject(4),
         NameObject("/AP"): DictionaryObject({
             NameObject("/N"): NullObject()
         })
     })
     return number_box
 
-def create_summary_annotation(writer: PdfWriter, page_num: int, number: int, summary: str, position: Tuple[float, float]) -> DictionaryObject:
-    """Create a summary annotation in the left margin."""
-    annotation = DictionaryObject()
-    
-    # Split summary into title and content
-    parts = summary.split('\n')
-    title = parts[0].replace('Title: ', '')
-    content = parts[1].replace('Summary: ', '') if len(parts) > 1 else summary
-    
-    formatted_text = f"{number}. {title}\n\n{content}"
-    
-    annotation.update({
-        NameObject("/Type"): NameObject("/Annot"),
-        NameObject("/Subtype"): NameObject("/FreeText"),
-        NameObject("/F"): NumberObject(4),
-        NameObject("/Contents"): createStringObject(formatted_text),
-        NameObject("/Rect"): ArrayObject([
-            FloatObject(20),  # Left margin
-            FloatObject(position[1]),
-            FloatObject(180),  # Width of summary
-            FloatObject(position[1] + 80)  # Height of summary
-        ]),
-        NameObject("/C"): ArrayObject([
-            FloatObject(0),  # Black text
-            FloatObject(0),
-            FloatObject(0)
-        ]),
-        NameObject("/DA"): createStringObject("/Helv 10 Tf 0 0 0 rg"),  # Font settings
-        NameObject("/Q"): NumberObject(0),  # Left-aligned
-        NameObject("/Border"): ArrayObject([
-            NumberObject(0),
-            NumberObject(0),
-            NumberObject(1)
-        ]),
-        NameObject("/BS"): DictionaryObject({
-            NameObject("/Type"): NameObject("/Border"),
-            NameObject("/W"): NumberObject(1),
-            NameObject("/S"): NameObject("/S")
-        }),
-        NameObject("/AP"): DictionaryObject({
-            NameObject("/N"): NullObject()
-        })
-    })
-    return annotation
-
 async def process_pdf_with_summaries(pdf_file: io.BytesIO) -> io.BytesIO:
-    """
-    Process PDF file and generate summaries with improved visual layout
-    """
+    """Process PDF file and generate summaries with improved visual layout"""
     try:
         # Extract text and sections
         sections = await run_in_executor(extract_text_with_positions, pdf_file)
@@ -250,43 +240,51 @@ async def process_pdf_with_summaries(pdf_file: io.BytesIO) -> io.BytesIO:
         reader = PdfReader(pdf_file)
         writer = PdfWriter()
         
-        # Dictionary to store annotations for each page
-        page_annotations = {}
-        
-        # Group annotations by page
-        for i, section in enumerate(sections):
-            if section.summary:
-                if section.page not in page_annotations:
-                    page_annotations[section.page] = []
-                
-                # Create highlight annotation
-                highlight = create_highlight_annotation(writer, section.page, section.position)
-                
-                # Create number annotation
-                number_pos = (section.position[2] + 5, section.position[3] - 15)  # Right of text, aligned with top
-                number = create_number_annotation(writer, section.page, i, number_pos)
-                
-                # Create summary annotation
-                summary_pos = (20, section.position[3])  # Left margin, aligned with text
-                summary = create_summary_annotation(writer, section.page, i, section.summary, summary_pos)
-                
-                page_annotations[section.page].extend([highlight, number, summary])
-        
         # Process each page
         for i in range(len(reader.pages)):
             page = reader.pages[i]
             writer.add_page(page)
             
-            # Add annotations for this page
-            if i in page_annotations:
+            # Get sections for this page
+            page_sections = [(j, s) for j, s in enumerate(sections) if s.page == i and s.summary]
+            
+            # Create annotations for this page
+            annotations = []
+            
+            # Add highlight and number annotations
+            for j, section in page_sections:
+                # Create highlight annotation
+                highlight = create_highlight_annotation(writer, i, section.position)
+                annotations.append(highlight)
+                
+                # Create number annotation
+                number_pos = (section.position[2] + 5, section.position[3] - 15)
+                number = create_number_annotation(writer, i, j, number_pos)
+                annotations.append(number)
+            
+            # Add annotations to page
+            if annotations:
                 if "/Annots" in writer.pages[i]:
                     existing_annots = writer.pages[i]["/Annots"]
                     if isinstance(existing_annots, IndirectObject):
                         existing_annots = existing_annots.get_object()
-                    for annot in page_annotations[i]:
+                    for annot in annotations:
                         existing_annots.append(annot)
                 else:
-                    writer.pages[i][NameObject("/Annots")] = ArrayObject(page_annotations[i])
+                    writer.pages[i][NameObject("/Annots")] = ArrayObject(annotations)
+            
+            # Create sidebar with summaries
+            if page_sections:
+                # Create a new page with summaries
+                packet = BytesIO()
+                c = canvas.Canvas(packet, pagesize=letter)
+                create_summary_sidebar(c, page_sections, letter[1])
+                c.save()
+                
+                # Merge sidebar with main page
+                packet.seek(0)
+                sidebar = PdfReader(packet)
+                writer.pages[i].merge_page(sidebar.pages[0])
         
         # Write to buffer
         output_buffer = io.BytesIO()

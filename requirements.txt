@@ -1,6 +1,6 @@
 Django==5.1.5
 djangorestframework==3.15.2
-PyPDF2>=3.0.1,<4.0.0
+PyPDF2==3.0.1
 gunicorn==23.0.0
 python-magic==0.4.27
 django-cors-headers==4.6.0
@@ -15,5 +15,6 @@ async-timeout==4.0.3
 attrs==23.2.0
 multidict==6.0.5
 yarl==1.9.4
-httpx>=0.26.0  # Required for OpenAI async client
-reportlab>=4.0.9  # For PDF text rendering
+httpx>=0.26.0
+reportlab>=4.0.9
+Pillow>=10.2.0  # Required by reportlab
