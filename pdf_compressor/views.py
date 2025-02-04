@@ -3,15 +3,18 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.renderers import TemplateHTMLRenderer, JSONRenderer
+from rest_framework.request import Request
+from django.http import HttpResponse
 from .serializers import PDFFileSerializer
 from .utils import compress_pdf
 import logging
 import traceback
 import io
+from typing import Union, Optional
 
 logger = logging.getLogger(__name__)
 
-def is_pdf(file_obj):
+def is_pdf(file_obj: Union[io.BytesIO, io.BufferedRandom]) -> bool:
     """
     Check if file is a PDF by checking its header bytes
     """
@@ -33,7 +36,7 @@ class PDFCompressorView(APIView):
     renderer_classes = [JSONRenderer, TemplateHTMLRenderer]
     template_name = 'pdf_compressor/index.html'
     
-    def get(self, request, *args, **kwargs):
+    def get(self, request: Request, *args, **kwargs) -> Response:
         """
         Renders the file upload form.
         """
@@ -43,7 +46,7 @@ class PDFCompressorView(APIView):
             'description': 'Upload a PDF file to compress it.'
         }, template_name=self.template_name)
 
-    def render_form_with_error(self, error_message, status_code=400):
+    def render_form_with_error(self, error_message: str, status_code: int = 400) -> Response:
         """
         Helper method to render form with error message
         """
@@ -55,11 +58,14 @@ class PDFCompressorView(APIView):
         }
         return Response(context, status=status_code, template_name=self.template_name)
 
-    def post(self, request):
+    def post(self, request: Request) -> Union[Response, HttpResponse]:
         """
         Handles PDF file upload and compression.
         """
         try:
+            # Check if this is an AJAX request or direct form submission
+            is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
             serializer = PDFFileSerializer(data=request.data)
             if not serializer.is_valid():
                 logger.error(f"Serializer errors: {serializer.errors}")
@@ -106,11 +112,10 @@ class PDFCompressorView(APIView):
                 compressed_pdf = compress_pdf(pdf_file)
                 logger.info("PDF compression successful")
                 
-                # Set response headers for file download
-                response = Response(
+                # Return the PDF file directly as a download
+                response = HttpResponse(
                     compressed_pdf.getvalue(),
-                    content_type='application/pdf',
-                    status=status.HTTP_200_OK
+                    content_type='application/pdf'
                 )
                 response['Content-Disposition'] = f'attachment; filename="compressed_{pdf_file.name}"'
                 return response
@@ -118,7 +123,6 @@ class PDFCompressorView(APIView):
             except Exception as e:
                 logger.error(f"Error compressing PDF: {str(e)}")
                 logger.error(traceback.format_exc())
-                # Return error response with template
                 return self.render_form_with_error(
                     "Error compressing PDF. Please ensure the file is not corrupted.",
                     status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -127,7 +131,6 @@ class PDFCompressorView(APIView):
         except Exception as e:
             logger.error(f"Unexpected error: {str(e)}")
             logger.error(traceback.format_exc())
-            # Return error response with template
             return self.render_form_with_error(
                 "An unexpected error occurred. Please try again.",
                 status.HTTP_500_INTERNAL_SERVER_ERROR
