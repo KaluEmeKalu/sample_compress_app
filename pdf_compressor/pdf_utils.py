@@ -119,22 +119,24 @@ async def summarize_text(text: str) -> str:
 def create_summary_sidebar(c: canvas.Canvas, summaries: List[Tuple[int, PDFSection]], page_height: float):
     """Create a sidebar with numbered summaries"""
     # Constants for layout
-    SIDEBAR_WIDTH = 250
-    SIDEBAR_MARGIN = 40
-    CIRCLE_RADIUS = 8
-    CIRCLE_LEFT_MARGIN = 50
-    TEXT_LEFT_MARGIN = 80
-    TITLE_FONT_SIZE = 11
-    CONTENT_FONT_SIZE = 9
-    LINE_HEIGHT = 15
-    SECTION_SPACING = 25
+    SIDEBAR_WIDTH = 150
+    LEFT_MARGIN = 20
+    RIGHT_MARGIN = 20
+    TOP_MARGIN = 40
+    CIRCLE_RADIUS = 6
+    CIRCLE_MARGIN = 10
+    TEXT_MARGIN = 35
+    TITLE_FONT_SIZE = 10
+    CONTENT_FONT_SIZE = 8
+    LINE_HEIGHT = 12
+    SECTION_SPACING = 15
     
     # Draw sidebar background
     c.setFillColorRGB(0.95, 0.95, 0.95)  # Light gray
-    c.rect(SIDEBAR_MARGIN, SIDEBAR_MARGIN, SIDEBAR_WIDTH, page_height - (2 * SIDEBAR_MARGIN), fill=1)
+    c.rect(LEFT_MARGIN, TOP_MARGIN, SIDEBAR_WIDTH, page_height - (TOP_MARGIN + LEFT_MARGIN), fill=1)
     
     # Start position for first summary
-    y = page_height - (2 * SIDEBAR_MARGIN)
+    y = page_height - (TOP_MARGIN + LINE_HEIGHT)
     
     for i, (_, section) in enumerate(summaries):
         if not section.summary:
@@ -147,21 +149,26 @@ def create_summary_sidebar(c: canvas.Canvas, summaries: List[Tuple[int, PDFSecti
         
         # Draw number circle
         c.setFillColorRGB(0.2, 0.4, 0.8)  # Blue
-        circle_x = SIDEBAR_MARGIN + CIRCLE_LEFT_MARGIN
-        circle_y = y - 8
+        circle_x = LEFT_MARGIN + CIRCLE_MARGIN + CIRCLE_RADIUS
+        circle_y = y - CIRCLE_RADIUS
         c.circle(circle_x, circle_y, CIRCLE_RADIUS, fill=1)
         
         # Draw number
         c.setFillColorRGB(1, 1, 1)  # White
-        c.setFont("Helvetica-Bold", 9)
-        number_width = c.stringWidth(str(i), "Helvetica-Bold", 9)
+        c.setFont("Helvetica-Bold", 8)
+        number = str(i + 1)  # Start from 1 instead of 0
+        number_width = c.stringWidth(number, "Helvetica-Bold", 8)
         number_x = circle_x - (number_width / 2)
-        c.drawString(number_x, circle_y - 3, str(i))
+        number_y = circle_y - 3
+        c.drawString(number_x, number_y, number)
         
         # Draw title
         c.setFillColorRGB(0, 0, 0)  # Black
         c.setFont("Helvetica-Bold", TITLE_FONT_SIZE)
-        max_width = SIDEBAR_WIDTH - TEXT_LEFT_MARGIN - SIDEBAR_MARGIN
+        text_x = LEFT_MARGIN + TEXT_MARGIN
+        max_width = SIDEBAR_WIDTH - (TEXT_MARGIN + RIGHT_MARGIN)
+        
+        # Word wrap title
         wrapped_title = []
         current_line = ""
         
@@ -175,17 +182,19 @@ def create_summary_sidebar(c: canvas.Canvas, summaries: List[Tuple[int, PDFSecti
                 current_line = word
         if current_line:
             wrapped_title.append(current_line)
-            
+        
+        # Draw wrapped title
         for line in wrapped_title:
-            c.drawString(TEXT_LEFT_MARGIN, y, line)
+            c.drawString(text_x, y, line)
             y -= LINE_HEIGHT
         
         # Add spacing between title and content
-        y -= 5
+        y -= LINE_HEIGHT / 2
         
         # Draw content
         c.setFont("Helvetica", CONTENT_FONT_SIZE)
-        max_width = SIDEBAR_WIDTH - TEXT_LEFT_MARGIN - SIDEBAR_MARGIN
+        
+        # Word wrap content
         wrapped_content = []
         current_line = ""
         
@@ -199,9 +208,10 @@ def create_summary_sidebar(c: canvas.Canvas, summaries: List[Tuple[int, PDFSecti
                 current_line = word
         if current_line:
             wrapped_content.append(current_line)
-            
+        
+        # Draw wrapped content
         for line in wrapped_content:
-            c.drawString(TEXT_LEFT_MARGIN, y, line)
+            c.drawString(text_x, y, line)
             y -= LINE_HEIGHT
         
         y -= SECTION_SPACING  # Add space between sections
