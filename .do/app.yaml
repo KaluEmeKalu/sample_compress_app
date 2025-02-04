@@ -5,8 +5,10 @@ services:
     git:
       branch: main
       repo_clone_url: ${_REPO_URL}  # Will be replaced by actual repository URL
-    build_command: pip install -r requirements.txt
-    run_command: gunicorn summit_project.wsgi:application --bind 0.0.0.0:8080 --workers 3 --log-level debug
+    build_command: |
+      # Install system dependencies and Python packages
+      pip install -r requirements.txt
+    run_command: gunicorn summit_project.wsgi:application --bind 0.0.0.0:8080 --workers 3 --log-level debug --timeout 120
     envs:
       - key: DJANGO_SECRET_KEY
         scope: RUN_TIME
@@ -37,12 +39,12 @@ services:
         value: "/app"
     http_port: 8080
     instance_count: 1
-    instance_size_slug: basic-xs
+    instance_size_slug: professional-xs  # Increased memory for PDF processing
     health_check:
       http_path: /
       initial_delay_seconds: 30
       period_seconds: 15
-      timeout_seconds: 5
+      timeout_seconds: 10  # Increased timeout
       success_threshold: 1
       failure_threshold: 3
     routes:
