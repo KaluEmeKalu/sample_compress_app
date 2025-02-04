@@ -1,16 +1,17 @@
-import io
+from io import BytesIO
 import logging
+from typing import Union, BinaryIO
 from PyPDF2 import PdfReader, PdfWriter, errors
 import traceback
 
 logger = logging.getLogger(__name__)
 
-def compress_pdf(pdf_file):
+def compress_pdf(pdf_file: Union[BytesIO, BinaryIO]) -> BytesIO:
     """
     Compress PDF file by reducing its quality
     
     Args:
-        pdf_file: File object containing the PDF to compress
+        pdf_file: File object containing the PDF to compress. Can be either BytesIO or file object
         
     Returns:
         BytesIO: Buffer containing the compressed PDF
@@ -23,16 +24,16 @@ def compress_pdf(pdf_file):
         
         # Log initial file size
         pdf_file.seek(0, 2)  # Seek to end
-        initial_size = pdf_file.tell()
+        initial_size: int = pdf_file.tell()
         pdf_file.seek(0)  # Reset to beginning
         logger.info(f"Initial file size: {initial_size / 1024:.2f} KB")
 
         # Read the PDF file
         try:
             # Store file content in memory to avoid file pointer issues
-            pdf_content = pdf_file.read()
-            pdf_file_obj = io.BytesIO(pdf_content)
-            pdf_reader = PdfReader(pdf_file_obj)
+            pdf_content: bytes = pdf_file.read()
+            pdf_file_obj: BytesIO = BytesIO(pdf_content)
+            pdf_reader: PdfReader = PdfReader(pdf_file_obj)
             logger.info(f"Successfully read PDF with {len(pdf_reader.pages)} pages")
         except errors.PdfReadError as e:
             logger.error(f"PDF Read Error: {str(e)}")
@@ -43,7 +44,7 @@ def compress_pdf(pdf_file):
             logger.error(traceback.format_exc())
             raise Exception(f"Error reading PDF file: {str(e)}")
 
-        pdf_writer = PdfWriter()
+        pdf_writer: PdfWriter = PdfWriter()
 
         # Copy pages to writer with compression
         try:
@@ -65,7 +66,7 @@ def compress_pdf(pdf_file):
             raise Exception(f"Error processing PDF pages: {str(e)}")
 
         # Create output buffer
-        output_buffer = io.BytesIO()
+        output_buffer: BytesIO = BytesIO()
         
         # Write to buffer with compression
         try:
@@ -77,7 +78,7 @@ def compress_pdf(pdf_file):
             raise Exception(f"Error writing compressed PDF: {str(e)}")
         
         # Log final file size
-        final_size = output_buffer.tell()
+        final_size: int = output_buffer.tell()
         logger.info(f"Final file size: {final_size / 1024:.2f} KB")
         logger.info(f"Compression ratio: {(1 - final_size/initial_size) * 100:.2f}%")
         
