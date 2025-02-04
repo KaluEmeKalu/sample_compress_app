@@ -31,7 +31,7 @@ class PDFSection:
         self.position = position  # (x0, y0, x1, y1)
         self.summary: str = ""
 
-def extract_text_with_positions(pdf_file: io.BytesIO) -> Tuple[List[PDFSection], PdfReader]:
+def extract_text_with_positions(pdf_file: io.BytesIO) -> List[PDFSection]:
     """
     Extract text from PDF with position information
     
@@ -39,7 +39,7 @@ def extract_text_with_positions(pdf_file: io.BytesIO) -> Tuple[List[PDFSection],
         pdf_file: BytesIO object containing the PDF
         
     Returns:
-        Tuple of (List of PDFSection objects, PdfReader object)
+        List of PDFSection objects containing text and position information
     """
     try:
         sections: List[PDFSection] = []
@@ -85,7 +85,7 @@ def extract_text_with_positions(pdf_file: io.BytesIO) -> Tuple[List[PDFSection],
             if current_text:
                 sections.append(PDFSection(current_text.strip(), page_num, current_position))
         
-        return sections, reader
+        return sections
     except Exception as e:
         logger.error(f"Error extracting text from PDF: {str(e)}")
         raise Exception(f"Error extracting text from PDF: {str(e)}")
@@ -120,40 +120,6 @@ async def summarize_text(text: str) -> str:
         logger.error(f"Error summarizing text: {str(e)}")
         return "Error generating summary"
 
-def create_annotation_dict(writer: PdfWriter, page_num: int, text: str, rect: Tuple[float, float, float, float]) -> DictionaryObject:
-    """Create a PDF annotation dictionary."""
-    annotation = DictionaryObject()
-    
-    # Basic annotation properties
-    annotation.update({
-        NameObject("/Type"): NameObject("/Annot"),
-        NameObject("/Subtype"): NameObject("/Text"),
-        NameObject("/F"): NumberObject(4),
-        NameObject("/Contents"): createStringObject(text),
-        NameObject("/Rect"): ArrayObject([
-            FloatObject(rect[0]),
-            FloatObject(rect[1]),
-            FloatObject(rect[0] + 200),
-            FloatObject(rect[1] + 50)
-        ]),
-        NameObject("/P"): writer.pages[page_num].get_object(),
-        NameObject("/T"): createStringObject(f"Summary {datetime.now().strftime('%H:%M:%S')}"),
-        NameObject("/C"): ArrayObject([
-            FloatObject(1),
-            FloatObject(1),
-            FloatObject(0)
-        ]),
-        NameObject("/CA"): NumberObject(1),
-        NameObject("/Border"): ArrayObject([
-            NumberObject(0),
-            NumberObject(0),
-            NumberObject(2)
-        ]),
-        NameObject("/M"): createStringObject(datetime.now().strftime("D:%Y%m%d%H%M%S"))
-    })
-    
-    return annotation
-
 async def process_pdf_with_summaries(pdf_file: io.BytesIO) -> io.BytesIO:
     """
     Process PDF file and generate summaries for each section
@@ -165,8 +131,8 @@ async def process_pdf_with_summaries(pdf_file: io.BytesIO) -> io.BytesIO:
         BytesIO object containing the annotated PDF
     """
     try:
-        # Run synchronous PDF extraction in executor
-        sections, reader = await run_in_executor(extract_text_with_positions, pdf_file)
+        # Extract text and sections
+        sections = await run_in_executor(extract_text_with_positions, pdf_file)
         
         # Generate summaries for each section concurrently
         summary_tasks = []
@@ -181,39 +147,68 @@ async def process_pdf_with_summaries(pdf_file: io.BytesIO) -> io.BytesIO:
         for section, task in summary_tasks:
             section.summary = await task
         
-        # Create new PDF with annotations
+        # Create new PDF
+        reader = PdfReader(pdf_file)
         writer = PdfWriter()
         
-        # Copy all pages from the original PDF
-        for page in reader.pages:
-            writer.add_page(page)
+        # Dictionary to store annotations for each page
+        page_annotations = {}
         
-        # Add annotations for each section
+        # Group annotations by page
         for section in sections:
             if section.summary:
-                # Create annotation in the margin
-                margin_x = 50  # Left margin position
-                margin_y = section.position[1]  # Align with text vertically
+                if section.page not in page_annotations:
+                    page_annotations[section.page] = []
                 
-                # Create and add annotation
-                annotation = create_annotation_dict(
-                    writer,
-                    section.page,
-                    section.summary,
-                    (margin_x, margin_y, margin_x + 200, margin_y + 50)
-                )
-                
-                # Get the page's annotations array, creating it if it doesn't exist
-                page = writer.pages[section.page]
-                if "/Annots" in page:
-                    current_annots = page[NameObject("/Annots")]
-                    if isinstance(current_annots, IndirectObject):
-                        current_annots = current_annots.get_object()
-                    current_annots.append(annotation)
-                else:
-                    page[NameObject("/Annots")] = ArrayObject([annotation])
+                # Create annotation dictionary
+                annotation = {
+                    'contents': section.summary,
+                    'rect': [50, section.position[1], 250, section.position[1] + 50],
+                    'color': [1, 1, 0],  # Yellow
+                    'title': f'Summary {datetime.now().strftime("%H:%M:%S")}'
+                }
+                page_annotations[section.page].append(annotation)
         
-        # Write the annotated PDF to a buffer
+        # Process each page
+        for i in range(len(reader.pages)):
+            page = reader.pages[i]
+            writer.add_page(page)
+            
+            # Add annotations for this page
+            if i in page_annotations:
+                annotations = []
+                for annot in page_annotations[i]:
+                    # Create annotation dictionary
+                    annotation_dict = DictionaryObject()
+                    annotation_dict.update({
+                        NameObject("/Type"): NameObject("/Annot"),
+                        NameObject("/Subtype"): NameObject("/Text"),
+                        NameObject("/F"): NumberObject(4),
+                        NameObject("/Contents"): createStringObject(annot['contents']),
+                        NameObject("/Rect"): ArrayObject([
+                            FloatObject(annot['rect'][0]),
+                            FloatObject(annot['rect'][1]),
+                            FloatObject(annot['rect'][2]),
+                            FloatObject(annot['rect'][3])
+                        ]),
+                        NameObject("/C"): ArrayObject([
+                            FloatObject(annot['color'][0]),
+                            FloatObject(annot['color'][1]),
+                            FloatObject(annot['color'][2])
+                        ]),
+                        NameObject("/T"): createStringObject(annot['title'])
+                    })
+                    annotations.append(annotation_dict)
+                
+                if annotations:
+                    if "/Annots" in writer.pages[i]:
+                        existing_annots = writer.pages[i]["/Annots"]
+                        for annot in annotations:
+                            existing_annots.append(annot)
+                    else:
+                        writer.pages[i][NameObject("/Annots")] = ArrayObject(annotations)
+        
+        # Write to buffer
         output_buffer = io.BytesIO()
         writer.write(output_buffer)
         output_buffer.seek(0)
