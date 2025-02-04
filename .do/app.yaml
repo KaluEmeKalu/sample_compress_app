@@ -17,15 +17,22 @@ services:
       - key: PYTHONUNBUFFERED
         scope: RUN_TIME
         value: "1"
+      - key: PORT
+        scope: RUN_TIME
+        value: "8080"
       - key: DJANGO_ALLOWED_HOSTS
         scope: RUN_TIME
-        value: ${APP_DOMAIN}  # Will be automatically set by DigitalOcean
+        value: "squid-app-nio8c.ondigitalocean.app,.ondigitalocean.app"
     http_port: 8080
     instance_count: 1
-    instance_size_slug: basic-xs  # Smallest instance size, can be scaled up
+    instance_size_slug: basic-xs
     health_check:
       http_path: /api/compress/
       initial_delay_seconds: 30
+      period_seconds: 15
+      timeout_seconds: 5
+      success_threshold: 1
+      failure_threshold: 3
     routes:
       - path: /
     source_dir: /
