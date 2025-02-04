@@ -13,6 +13,7 @@ import traceback
 import io
 from typing import Union, Optional, List
 import json
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -165,7 +166,7 @@ class PDFSummarizerView(APIView):
         }
         return Response(context, status=status_code, template_name=self.template_name)
 
-    async def post(self, request: Request) -> Response:
+    def post(self, request: Request) -> Response:
         """
         Handles PDF file upload and summarization.
         """
@@ -213,8 +214,12 @@ class PDFSummarizerView(APIView):
                 pdf_file = io.BytesIO(file_content)
                 pdf_file.name = request.FILES['pdf_file'].name
                 
-                # Process PDF and generate summaries
-                sections = await process_pdf_with_summaries(pdf_file)
+                # Process PDF and generate summaries using event loop
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                sections = loop.run_until_complete(process_pdf_with_summaries(pdf_file))
+                loop.close()
+                
                 logger.info("PDF summarization successful")
                 
                 # Return the summarized sections

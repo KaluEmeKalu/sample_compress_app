@@ -6,6 +6,8 @@ import openai
 from django.conf import settings
 import os
 from dotenv import load_dotenv
+import asyncio
+from functools import partial
 
 # Load environment variables
 load_dotenv()
@@ -81,6 +83,11 @@ def extract_text_with_positions(pdf_file: io.BytesIO) -> List[PDFSection]:
         logger.error(f"Error extracting text from PDF: {str(e)}")
         raise Exception(f"Error extracting text from PDF: {str(e)}")
 
+def run_in_executor(func, *args):
+    """Run a sync function in an executor."""
+    loop = asyncio.get_event_loop()
+    return loop.run_in_executor(None, partial(func, *args))
+
 async def summarize_text(text: str) -> str:
     """
     Summarize text using OpenAI API
@@ -92,7 +99,7 @@ async def summarize_text(text: str) -> str:
         Summarized text
     """
     try:
-        response = await openai.chat.completions.create(
+        response = await openai.chat.completions.acreate(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "You are a helpful assistant that creates concise summaries of text. Keep summaries to 1-2 sentences."},
@@ -116,14 +123,21 @@ async def process_pdf_with_summaries(pdf_file: io.BytesIO) -> List[PDFSection]:
         List of PDFSection objects with summaries
     """
     try:
-        sections = extract_text_with_positions(pdf_file)
+        # Run synchronous PDF extraction in executor
+        sections = await run_in_executor(extract_text_with_positions, pdf_file)
         
-        # Generate summaries for each section
+        # Generate summaries for each section concurrently
+        summary_tasks = []
         for section in sections:
             if len(section.text.split()) > 20:  # Only summarize sections with more than 20 words
-                section.summary = await summarize_text(section.text)
+                task = asyncio.create_task(summarize_text(section.text))
+                summary_tasks.append((section, task))
             else:
                 section.summary = section.text
+        
+        # Wait for all summaries to complete
+        for section, task in summary_tasks:
+            section.summary = await task
         
         return sections
     except Exception as e:
