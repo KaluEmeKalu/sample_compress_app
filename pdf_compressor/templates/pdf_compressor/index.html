@@ -61,7 +61,7 @@
         .loading {
             display: none;
             text-align: center;
-            margin: 10px 0;
+            padding: 20px;
         }
         .loading-text {
             color: #007bff;
@@ -71,11 +71,10 @@
 </head>
 <body>
     <div class="container">
-        <h1>PDF Compression API</h1>
-        <p>Upload your PDF file to compress it and reduce its file size while maintaining quality.</p>
+        <h1>{{ title }}</h1>
+        <p>{{ description }}</p>
 
         <div class="api-form">
-            <h2>Upload PDF</h2>
             {% if error %}
                 <div class="error-message">{{ error }}</div>
             {% endif %}
@@ -84,11 +83,8 @@
                 <div class="form-group">
                     <label for="pdf_file">Select PDF File:</label>
                     <input type="file" id="pdf_file" name="pdf_file" accept=".pdf" required>
-                    {% if serializer.errors.pdf_file %}
-                        <div class="error-message">{{ serializer.errors.pdf_file.0 }}</div>
-                    {% endif %}
                 </div>
-                <button type="submit" class="submit-btn">Compress PDF</button>
+                <button type="submit" class="submit-btn">Process PDF</button>
                 <div id="loading" class="loading">
                     <p class="loading-text">Processing your PDF... Please wait.</p>
                 </div>
@@ -104,7 +100,7 @@
             <h3>Request Format</h3>
             <p>Send a multipart/form-data request with the following parameter:</p>
             <ul>
-                <li><code>pdf_file</code>: The PDF file to be compressed (max size: 10MB)</li>
+                <li><code>pdf_file</code>: The PDF file to be processed (max size: 10MB)</li>
             </ul>
 
             <h3>Example cURL Request</h3>
@@ -113,12 +109,12 @@
   https://squid-app-nio8c.ondigitalocean.app/api/compress/</pre>
 
             <h3>Response</h3>
-            <p>On success, receives the compressed PDF file with <code>Content-Type: application/pdf</code></p>
+            <p>On success, receives the processed PDF file with <code>Content-Type: application/pdf</code></p>
 
             <h3>Error Responses</h3>
             <ul>
                 <li class="error"><code>400 Bad Request</code>: Invalid file type or missing file</li>
-                <li class="error"><code>500 Internal Server Error</code>: Error during compression</li>
+                <li class="error"><code>500 Internal Server Error</code>: Error during processing</li>
             </ul>
 
             <h3>File Size Limits</h3>

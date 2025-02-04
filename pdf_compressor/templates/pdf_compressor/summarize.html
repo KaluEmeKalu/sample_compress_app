@@ -4,63 +4,32 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PDF Summarizer</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
     <style>
-        :root {
-            --margin-width: 300px;
-            --primary-color: #007bff;
-            --secondary-color: #6c757d;
-            --background-color: #f8f9fa;
-            --border-color: #dee2e6;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            line-height: 1.6;
-            margin: 0;
-            padding: 0;
-            background-color: var(--background-color);
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .upload-form {
-            background-color: white;
+        .api-form {
+            background-color: #f8f9fa;
             padding: 20px;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 30px;
+            margin-top: 20px;
         }
-
         .form-group {
             margin-bottom: 15px;
         }
-
         .form-group label {
             display: block;
             margin-bottom: 5px;
             font-weight: bold;
         }
-
         .form-group input[type="file"] {
             display: block;
             width: 100%;
             padding: 8px;
-            border: 1px solid var(--border-color);
+            border: 1px solid #ddd;
             border-radius: 4px;
             background-color: white;
         }
-
         .submit-btn {
-            background-color: var(--primary-color);
+            background-color: #007bff;
             color: white;
             padding: 10px 20px;
             border: none;
@@ -68,11 +37,9 @@
             cursor: pointer;
             font-size: 16px;
         }
-
         .submit-btn:hover {
             background-color: #0056b3;
         }
-
         .error-message {
             color: #dc3545;
             background-color: #f8d7da;
@@ -81,107 +48,33 @@
             margin: 10px 0;
             border-radius: 4px;
         }
-
-        .document-view {
-            display: flex;
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            min-height: 500px;
+        .api-docs {
+            margin-top: 30px;
         }
-
-        .margin-notes {
-            width: var(--margin-width);
-            background-color: #f1f1f1;
-            padding: 20px;
-            border-right: 1px solid var(--border-color);
-            overflow-y: auto;
-            flex-shrink: 0;
-        }
-
-        .content {
-            flex-grow: 1;
-            padding: 20px;
-            overflow-y: auto;
-        }
-
-        .summary-note {
-            background-color: white;
+        .endpoint {
+            background-color: #e3f2fd;
             padding: 15px;
-            margin-bottom: 15px;
-            border-radius: 4px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            font-size: 14px;
+            border-radius: 5px;
+            font-family: monospace;
+            margin: 10px 0;
         }
-
-        .summary-note .page {
-            color: var(--secondary-color);
-            font-size: 12px;
-            margin-bottom: 5px;
-        }
-
-        .summary-note .text {
-            color: var(--primary-color);
-            font-weight: bold;
-            margin-bottom: 8px;
-        }
-
-        .text-section {
-            margin-bottom: 20px;
-            padding: 15px;
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            position: relative;
-        }
-
-        .text-section:hover {
-            background-color: #f8f9fa;
-        }
-
-        .text-section .page {
-            position: absolute;
-            top: -10px;
-            right: 10px;
-            background-color: var(--primary-color);
-            color: white;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 12px;
-        }
-
         .loading {
             display: none;
             text-align: center;
             padding: 20px;
         }
-
         .loading-text {
-            color: var(--primary-color);
+            color: #007bff;
             font-weight: bold;
-        }
-
-        @media (max-width: 768px) {
-            .document-view {
-                flex-direction: column;
-            }
-
-            .margin-notes {
-                width: 100%;
-                border-right: none;
-                border-bottom: 1px solid var(--border-color);
-            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>{{ title }}</h1>
-            <p>{{ description }}</p>
-        </div>
+        <h1>{{ title }}</h1>
+        <p>{{ description }}</p>
 
-        {% if not sections %}
-        <div class="upload-form">
+        <div class="api-form">
             {% if error %}
                 <div class="error-message">{{ error }}</div>
             {% endif %}
@@ -197,45 +90,50 @@
                 </div>
             </form>
         </div>
-        {% else %}
-        <div class="document-view">
-            <div class="margin-notes">
-                <h2>Summary Notes</h2>
-                {% for section in sections %}
-                <div class="summary-note" onclick="scrollToSection({{ section.page }})">
-                    <div class="page">Page {{ section.page }}</div>
-                    <div class="text">{{ section.summary }}</div>
-                </div>
-                {% endfor %}
-            </div>
-            <div class="content">
-                <h2>{{ filename }}</h2>
-                {% for section in sections %}
-                <div class="text-section" id="page-{{ section.page }}">
-                    <div class="page">Page {{ section.page }}</div>
-                    {{ section.text }}
-                </div>
-                {% endfor %}
-            </div>
+
+        <div class="api-docs">
+            <h2>API Documentation</h2>
+            
+            <h3>Endpoint</h3>
+            <div class="endpoint">POST /api/summarize/</div>
+
+            <h3>Request Format</h3>
+            <p>Send a multipart/form-data request with the following parameter:</p>
+            <ul>
+                <li><code>pdf_file</code>: The PDF file to summarize (max size: 10MB)</li>
+            </ul>
+
+            <h3>Example cURL Request</h3>
+            <pre>curl -X POST \
+  -F "pdf_file=@/path/to/your/file.pdf" \
+  https://squid-app-nio8c.ondigitalocean.app/api/summarize/</pre>
+
+            <h3>Response</h3>
+            <p>On success, receives the annotated PDF file with summaries in the margins</p>
+
+            <h3>Error Responses</h3>
+            <ul>
+                <li class="error"><code>400 Bad Request</code>: Invalid file type or missing file</li>
+                <li class="error"><code>500 Internal Server Error</code>: Error during summarization</li>
+            </ul>
+
+            <h3>Features</h3>
+            <ul>
+                <li>Extracts text from PDF</li>
+                <li>Generates concise summaries using AI</li>
+                <li>Adds summaries as margin annotations</li>
+                <li>Preserves original PDF content</li>
+            </ul>
+
+            <h3>File Size Limits</h3>
+            <p>Maximum file size: <code>10MB</code></p>
         </div>
-        {% endif %}
     </div>
 
     <script>
         function showLoading() {
             document.getElementById('loading').style.display = 'block';
             document.querySelector('.submit-btn').disabled = true;
-        }
-
-        function scrollToSection(page) {
-            const section = document.getElementById(`page-${page}`);
-            if (section) {
-                section.scrollIntoView({ behavior: 'smooth' });
-                section.style.backgroundColor = '#e3f2fd';
-                setTimeout(() => {
-                    section.style.backgroundColor = '';
-                }, 2000);
-            }
         }
     </script>
 </body>
