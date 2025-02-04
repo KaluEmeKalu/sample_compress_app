@@ -11,7 +11,12 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-development-ke
 DEBUG = os.environ.get('DJANGO_DEBUG', 'False') == 'True'
 
 # Get allowed hosts from environment variable or default to localhost
-ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost').split(',')
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    'squid-app-nio8c.ondigitalocean.app',
+    '.ondigitalocean.app',  # Allow all subdomains
+]
 
 # Application definition
 INSTALLED_APPS = [
@@ -120,7 +125,10 @@ if not DEBUG:
     X_FRAME_OPTIONS = 'DENY'
 
 # CORS settings - Configure appropriately for production
-CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:8000').split(',')
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:8000',
+    'https://squid-app-nio8c.ondigitalocean.app',
+]
 CORS_ALLOW_CREDENTIALS = True
 
 # File upload settings
