@@ -42,7 +42,11 @@
         }
         .error-message {
             color: #dc3545;
-            margin-top: 5px;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
         }
         .api-docs {
             margin-top: 30px;
@@ -54,6 +58,15 @@
             font-family: monospace;
             margin: 10px 0;
         }
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 10px 0;
+        }
+        .loading-text {
+            color: #007bff;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -63,7 +76,10 @@
 
         <div class="api-form">
             <h2>Upload PDF</h2>
-            <form action="/api/compress/" method="post" enctype="multipart/form-data">
+            {% if error %}
+                <div class="error-message">{{ error }}</div>
+            {% endif %}
+            <form action="/api/compress/" method="post" enctype="multipart/form-data" onsubmit="showLoading()">
                 {% csrf_token %}
                 <div class="form-group">
                     <label for="pdf_file">Select PDF File:</label>
@@ -73,6 +89,9 @@
                     {% endif %}
                 </div>
                 <button type="submit" class="submit-btn">Compress PDF</button>
+                <div id="loading" class="loading">
+                    <p class="loading-text">Processing your PDF... Please wait.</p>
+                </div>
             </form>
         </div>
 
@@ -85,7 +104,7 @@
             <h3>Request Format</h3>
             <p>Send a multipart/form-data request with the following parameter:</p>
             <ul>
-                <li><code>pdf_file</code>: The PDF file to be compressed</li>
+                <li><code>pdf_file</code>: The PDF file to be compressed (max size: 10MB)</li>
             </ul>
 
             <h3>Example cURL Request</h3>
@@ -106,5 +125,12 @@
             <p>Maximum file size: <code>10MB</code></p>
         </div>
     </div>
+
+    <script>
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+            document.querySelector('.submit-btn').disabled = true;
+        }
+    </script>
 </body>
 </html>

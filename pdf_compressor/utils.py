@@ -1,6 +1,6 @@
 import io
 import logging
-from PyPDF2 import PdfReader, PdfWriter
+from PyPDF2 import PdfReader, PdfWriter, errors
 import traceback
 
 logger = logging.getLogger(__name__)
@@ -29,8 +29,15 @@ def compress_pdf(pdf_file):
 
         # Read the PDF file
         try:
-            pdf_reader = PdfReader(pdf_file)
+            # Store file content in memory to avoid file pointer issues
+            pdf_content = pdf_file.read()
+            pdf_file_obj = io.BytesIO(pdf_content)
+            pdf_reader = PdfReader(pdf_file_obj)
             logger.info(f"Successfully read PDF with {len(pdf_reader.pages)} pages")
+        except errors.PdfReadError as e:
+            logger.error(f"PDF Read Error: {str(e)}")
+            logger.error(traceback.format_exc())
+            raise Exception(f"Invalid or corrupted PDF file: {str(e)}")
         except Exception as e:
             logger.error(f"Error reading PDF: {str(e)}")
             logger.error(traceback.format_exc())
@@ -42,7 +49,15 @@ def compress_pdf(pdf_file):
         try:
             for i, page in enumerate(pdf_reader.pages):
                 logger.debug(f"Processing page {i + 1}")
+                # Add page with compression settings
                 pdf_writer.add_page(page)
+                # Apply compression to images if available
+                if hasattr(page, '/Resources') and '/XObject' in page['/Resources']:
+                    for obj in page['/Resources']['/XObject'].values():
+                        if hasattr(obj, '/Filter'):
+                            obj['/Filter'] = '/DCTDecode'  # JPEG compression
+                            if hasattr(obj, '/DecodeParms'):
+                                obj['/DecodeParms'] = None
             logger.info("Successfully copied all pages")
         except Exception as e:
             logger.error(f"Error processing PDF pages: {str(e)}")
