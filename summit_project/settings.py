@@ -113,8 +113,9 @@ REST_FRAMEWORK = {
 
 # Security Settings
 if not DEBUG:
-    # HTTPS settings
-    SECURE_SSL_REDIRECT = True
+    # SSL/HTTPS Settings
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_SSL_REDIRECT = False  # Handled by DigitalOcean
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_BROWSER_XSS_FILTER = True
@@ -124,7 +125,7 @@ if not DEBUG:
     SECURE_HSTS_PRELOAD = True
     X_FRAME_OPTIONS = 'DENY'
 
-# CORS settings - Configure appropriately for production
+# CORS settings
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:8000',
     'https://squid-app-nio8c.ondigitalocean.app',
