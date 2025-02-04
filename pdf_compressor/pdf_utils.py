@@ -118,17 +118,24 @@ async def summarize_text(text: str) -> str:
 
 def create_summary_sidebar(c: canvas.Canvas, summaries: List[Tuple[int, PDFSection]], page_height: float):
     """Create a sidebar with numbered summaries"""
+    # Constants for layout
+    SIDEBAR_WIDTH = 200
+    SIDEBAR_MARGIN = 30
+    CIRCLE_RADIUS = 8
+    TEXT_LEFT_MARGIN = 60
+    TITLE_FONT_SIZE = 10
+    CONTENT_FONT_SIZE = 9
+    LINE_HEIGHT = 14
+    SECTION_SPACING = 20
+    
     # Draw sidebar background
     c.setFillColorRGB(0.95, 0.95, 0.95)  # Light gray
-    c.rect(20, 20, 180, page_height - 40, fill=1)
+    c.rect(SIDEBAR_MARGIN, SIDEBAR_MARGIN, SIDEBAR_WIDTH, page_height - (2 * SIDEBAR_MARGIN), fill=1)
     
-    # Set up styles for summaries
-    c.setFillColorRGB(0, 0, 0)  # Black text
-    c.setFont("Helvetica-Bold", 12)
-    y = page_height - 50
+    # Start position for first summary
+    y = page_height - (2 * SIDEBAR_MARGIN)
     
     for i, (_, section) in enumerate(summaries):
-        # Skip sections without summaries
         if not section.summary:
             continue
             
@@ -137,28 +144,34 @@ def create_summary_sidebar(c: canvas.Canvas, summaries: List[Tuple[int, PDFSecti
         title = parts[0].replace('Title: ', '')
         content = parts[1].replace('Summary: ', '') if len(parts) > 1 else section.summary
         
-        # Draw number
+        # Draw number circle
         c.setFillColorRGB(0.2, 0.4, 0.8)  # Blue
-        c.circle(35, y + 8, 10, fill=1)
+        circle_x = SIDEBAR_MARGIN + 20
+        circle_y = y - 5
+        c.circle(circle_x, circle_y, CIRCLE_RADIUS, fill=1)
+        
+        # Draw number
         c.setFillColorRGB(1, 1, 1)  # White
-        c.drawString(31 if i < 10 else 28, y + 4, str(i))
+        c.setFont("Helvetica", 8)
+        number_x = circle_x - 3 if i < 10 else circle_x - 5
+        c.drawString(number_x, circle_y - 3, str(i))
         
-        # Draw title and content
+        # Draw title
         c.setFillColorRGB(0, 0, 0)  # Black
-        c.setFont("Helvetica-Bold", 10)
-        title_width = 160
-        wrapped_title = [title[i:i+30] for i in range(0, len(title), 30)]
+        c.setFont("Helvetica-Bold", TITLE_FONT_SIZE)
+        wrapped_title = [title[i:i+25] for i in range(0, len(title), 25)]
         for line in wrapped_title:
-            c.drawString(50, y, line)
-            y -= 12
+            c.drawString(TEXT_LEFT_MARGIN, y, line)
+            y -= LINE_HEIGHT
         
-        c.setFont("Helvetica", 9)
-        wrapped_content = [content[i:i+35] for i in range(0, len(content), 35)]
+        # Draw content
+        c.setFont("Helvetica", CONTENT_FONT_SIZE)
+        wrapped_content = [content[i:i+30] for i in range(0, len(content), 30)]
         for line in wrapped_content:
-            c.drawString(50, y, line)
-            y -= 12
+            c.drawString(TEXT_LEFT_MARGIN, y, line)
+            y -= LINE_HEIGHT
         
-        y -= 10  # Space between summaries
+        y -= SECTION_SPACING  # Add space between sections
 
 def create_highlight_annotation(writer: PdfWriter, page_num: int, rect: Tuple[float, float, float, float]) -> DictionaryObject:
     """Create a highlight annotation"""
@@ -249,14 +262,14 @@ async def process_pdf_with_summaries(pdf_file: io.BytesIO) -> io.BytesIO:
             page = reader.pages[i]
             writer.add_page(page)
             
-            # Get sections for this page
-            page_sections = [(j, s) for j, s in enumerate(sections) if s.page == i and s.summary]
-            
-            # Create annotations for this page
+            # Get sections for this page and create annotations
             annotations = []
+            page_sections = []
             
-            # Add highlight and number annotations
-            for j, section in page_sections:
+            # Process sections for this page
+            for j, section in enumerate(sections):
+                if section.page == i and section.summary:
+                    page_sections.append((j, section))
                 # Create highlight annotation
                 highlight = create_highlight_annotation(writer, i, section.position)
                 annotations.append(highlight)
