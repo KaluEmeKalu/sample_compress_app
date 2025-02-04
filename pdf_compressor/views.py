@@ -30,6 +30,15 @@ def is_pdf(file_obj: Union[io.BytesIO, io.BufferedRandom]) -> bool:
         logger.error(f"Error checking PDF header: {str(e)}")
         return False
 
+def run_async(coro):
+    """Run an async function synchronously."""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
+
 class PDFCompressorView(APIView):
     """
     API endpoint that allows PDF files to be uploaded and compressed.
@@ -213,12 +222,8 @@ class PDFSummarizerView(APIView):
                 pdf_file = io.BytesIO(file_content)
                 pdf_file.name = request.FILES['pdf_file'].name
                 
-                # Process PDF and generate summaries using event loop
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                annotated_pdf = loop.run_until_complete(process_pdf_with_summaries(pdf_file))
-                loop.close()
-                
+                # Process PDF and generate summaries synchronously
+                annotated_pdf = run_async(process_pdf_with_summaries(pdf_file))
                 logger.info("PDF summarization successful")
                 
                 # Return the annotated PDF as a download
