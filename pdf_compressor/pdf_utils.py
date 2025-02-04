@@ -1,7 +1,8 @@
 from typing import List, Dict, Any, Tuple
 import io
 import logging
-from PyPDF2 import PdfReader, PdfWriter, PdfObject, FloatObject, ArrayObject, NumberObject, TextStringObject, DictionaryObject, NameObject
+from PyPDF2 import PdfReader, PdfWriter
+from PyPDF2.generic import FloatObject, ArrayObject, NumberObject, TextStringObject, DictionaryObject, NameObject
 import openai
 from django.conf import settings
 import os
@@ -9,6 +10,7 @@ from dotenv import load_dotenv
 import asyncio
 from functools import partial
 from datetime import datetime
+import traceback
 
 # Load environment variables
 load_dotenv()
