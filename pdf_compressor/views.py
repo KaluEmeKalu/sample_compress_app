@@ -5,12 +5,24 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.renderers import TemplateHTMLRenderer, JSONRenderer
 from .serializers import PDFFileSerializer
 from .utils import compress_pdf
-import magic
 import logging
-import sys
 import traceback
 
 logger = logging.getLogger(__name__)
+
+def is_pdf(file_obj):
+    """
+    Check if file is a PDF by checking its header bytes
+    """
+    try:
+        # Read first 4 bytes
+        pdf_header = file_obj.read(4)
+        file_obj.seek(0)  # Reset file pointer
+        # Check for PDF signature %PDF
+        return pdf_header.startswith(b'%PDF')
+    except Exception as e:
+        logger.error(f"Error checking PDF header: {str(e)}")
+        return False
 
 class PDFCompressorView(APIView):
     """
@@ -56,27 +68,20 @@ class PDFCompressorView(APIView):
             pdf_file = request.FILES['pdf_file']
             logger.info(f"Processing file: {pdf_file.name}")
 
-            try:
-                # Try to read file type
-                file_type = magic.from_buffer(pdf_file.read(1024), mime=True)
-                pdf_file.seek(0)  # Reset file pointer
-                logger.info(f"Detected file type: {file_type}")
-            except Exception as e:
-                logger.error(f"Error detecting file type: {str(e)}")
-                logger.error(traceback.format_exc())
-                # If magic fails, try to validate based on file extension
-                if not pdf_file.name.lower().endswith('.pdf'):
-                    return Response(
-                        {'error': 'Invalid file type. Only PDF files are allowed.'},
-                        status=status.HTTP_400_BAD_REQUEST,
-                        template_name='pdf_compressor/index.html'
-                    )
-                file_type = 'application/pdf'  # Assume PDF based on extension
-
-            if file_type != 'application/pdf':
-                logger.error(f"Invalid file type detected: {file_type}")
+            # Validate file is a PDF
+            if not pdf_file.name.lower().endswith('.pdf'):
+                logger.error("File does not have .pdf extension")
                 return Response(
                     {'error': 'Invalid file type. Only PDF files are allowed.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                    template_name='pdf_compressor/index.html'
+                )
+
+            # Additional PDF validation
+            if not is_pdf(pdf_file):
+                logger.error("File is not a valid PDF (invalid header)")
+                return Response(
+                    {'error': 'Invalid PDF file format.'},
                     status=status.HTTP_400_BAD_REQUEST,
                     template_name='pdf_compressor/index.html'
                 )

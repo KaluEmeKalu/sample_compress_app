@@ -5,9 +5,7 @@ services:
     git:
       branch: main
       repo_clone_url: ${_REPO_URL}  # Will be replaced by actual repository URL
-    build_command: |
-      apt-get update && apt-get install -y libmagic1 && \
-      pip install -r requirements.txt
+    build_command: pip install -r requirements.txt
     run_command: gunicorn summit_project.wsgi:application --bind 0.0.0.0:8080 --workers 3 --log-level debug
     envs:
       - key: DJANGO_SECRET_KEY
