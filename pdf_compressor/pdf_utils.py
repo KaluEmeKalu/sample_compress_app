@@ -127,14 +127,13 @@ def create_summary_sidebar(c: canvas.Canvas, summaries: List[Tuple[int, PDFSecti
     c.setFont("Helvetica-Bold", 12)
     y = page_height - 50
     
-    for i, (_, summary) in enumerate(summaries):
-        # Get the section from the tuple (index, section)
-        section = summary[1]  # This is already the PDFSection object
+    for i, (_, section) in enumerate(summaries):
+        # Skip sections without summaries
         if not section.summary:
             continue
             
         # Split summary into title and content
-        parts = section.summary.split('\n')  # Now using the summary attribute directly
+        parts = section.summary.split('\n')
         title = parts[0].replace('Title: ', '')
         content = parts[1].replace('Summary: ', '') if len(parts) > 1 else section.summary
         
