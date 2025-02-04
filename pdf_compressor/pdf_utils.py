@@ -119,14 +119,15 @@ async def summarize_text(text: str) -> str:
 def create_summary_sidebar(c: canvas.Canvas, summaries: List[Tuple[int, PDFSection]], page_height: float):
     """Create a sidebar with numbered summaries"""
     # Constants for layout
-    SIDEBAR_WIDTH = 200
-    SIDEBAR_MARGIN = 30
+    SIDEBAR_WIDTH = 250
+    SIDEBAR_MARGIN = 40
     CIRCLE_RADIUS = 8
-    TEXT_LEFT_MARGIN = 60
-    TITLE_FONT_SIZE = 10
+    CIRCLE_LEFT_MARGIN = 50
+    TEXT_LEFT_MARGIN = 80
+    TITLE_FONT_SIZE = 11
     CONTENT_FONT_SIZE = 9
-    LINE_HEIGHT = 14
-    SECTION_SPACING = 20
+    LINE_HEIGHT = 15
+    SECTION_SPACING = 25
     
     # Draw sidebar background
     c.setFillColorRGB(0.95, 0.95, 0.95)  # Light gray
@@ -146,27 +147,59 @@ def create_summary_sidebar(c: canvas.Canvas, summaries: List[Tuple[int, PDFSecti
         
         # Draw number circle
         c.setFillColorRGB(0.2, 0.4, 0.8)  # Blue
-        circle_x = SIDEBAR_MARGIN + 20
-        circle_y = y - 5
+        circle_x = SIDEBAR_MARGIN + CIRCLE_LEFT_MARGIN
+        circle_y = y - 8
         c.circle(circle_x, circle_y, CIRCLE_RADIUS, fill=1)
         
         # Draw number
         c.setFillColorRGB(1, 1, 1)  # White
-        c.setFont("Helvetica", 8)
-        number_x = circle_x - 3 if i < 10 else circle_x - 5
+        c.setFont("Helvetica-Bold", 9)
+        number_width = c.stringWidth(str(i), "Helvetica-Bold", 9)
+        number_x = circle_x - (number_width / 2)
         c.drawString(number_x, circle_y - 3, str(i))
         
         # Draw title
         c.setFillColorRGB(0, 0, 0)  # Black
         c.setFont("Helvetica-Bold", TITLE_FONT_SIZE)
-        wrapped_title = [title[i:i+25] for i in range(0, len(title), 25)]
+        max_width = SIDEBAR_WIDTH - TEXT_LEFT_MARGIN - SIDEBAR_MARGIN
+        wrapped_title = []
+        current_line = ""
+        
+        for word in title.split():
+            test_line = current_line + (" " if current_line else "") + word
+            if c.stringWidth(test_line, "Helvetica-Bold", TITLE_FONT_SIZE) <= max_width:
+                current_line = test_line
+            else:
+                if current_line:
+                    wrapped_title.append(current_line)
+                current_line = word
+        if current_line:
+            wrapped_title.append(current_line)
+            
         for line in wrapped_title:
             c.drawString(TEXT_LEFT_MARGIN, y, line)
             y -= LINE_HEIGHT
         
+        # Add spacing between title and content
+        y -= 5
+        
         # Draw content
         c.setFont("Helvetica", CONTENT_FONT_SIZE)
-        wrapped_content = [content[i:i+30] for i in range(0, len(content), 30)]
+        max_width = SIDEBAR_WIDTH - TEXT_LEFT_MARGIN - SIDEBAR_MARGIN
+        wrapped_content = []
+        current_line = ""
+        
+        for word in content.split():
+            test_line = current_line + (" " if current_line else "") + word
+            if c.stringWidth(test_line, "Helvetica", CONTENT_FONT_SIZE) <= max_width:
+                current_line = test_line
+            else:
+                if current_line:
+                    wrapped_content.append(current_line)
+                current_line = word
+        if current_line:
+            wrapped_content.append(current_line)
+            
         for line in wrapped_content:
             c.drawString(TEXT_LEFT_MARGIN, y, line)
             y -= LINE_HEIGHT
