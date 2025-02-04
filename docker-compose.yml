@@ -3,25 +3,15 @@ version: '3.8'
 services:
   web:
     build: .
-    command: >
-      bash -c "python manage.py migrate --noinput &&
-               python manage.py collectstatic --noinput &&
-               gunicorn --bind 0.0.0.0:8000 --workers 3 summit_project.wsgi:application"
+    command: python manage.py runserver 0.0.0.0:8000
     volumes:
       - .:/app
-      - static_volume:/app/staticfiles
     ports:
       - "8000:8000"
     environment:
-      - DJANGO_SECRET_KEY=your-secret-key-change-me
-      - DJANGO_DEBUG=False
+      - DJANGO_DEBUG=True
+      - DJANGO_SECRET_KEY=dev-secret-key-change-in-production
+      - OPENAI_API_KEY=${OPENAI_API_KEY}  # Pass from host environment
+      - DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
+      - PYTHONUNBUFFERED=1
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/compress/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-
-volumes:
-  static_volume:
