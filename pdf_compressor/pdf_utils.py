@@ -5,7 +5,7 @@ from PyPDF2 import PdfReader, PdfWriter
 from PyPDF2.generic import (
     FloatObject, ArrayObject, NumberObject, TextStringObject, 
     DictionaryObject, NameObject, createStringObject, IndirectObject,
-    RectangleObject
+    BooleanObject
 )
 import openai
 from django.conf import settings
@@ -135,20 +135,27 @@ def create_highlight_annotation(writer: PdfWriter, page_num: int, rect: Tuple[fl
             FloatObject(0)
         ]),
         NameObject("/CA"): NumberObject(0.3),  # Opacity
+        NameObject("/Border"): ArrayObject([
+            NumberObject(0),
+            NumberObject(0),
+            NumberObject(0)
+        ])
     })
     return highlight
 
 def create_number_annotation(writer: PdfWriter, page_num: int, number: int, position: Tuple[float, float]) -> DictionaryObject:
     """Create a number annotation."""
     number_box = DictionaryObject()
-    box_size = 15
+    box_size = 15.0  # Use float for consistency
     number_box.update({
         NameObject("/Type"): NameObject("/Annot"),
         NameObject("/Subtype"): NameObject("/Square"),
         NameObject("/F"): NumberObject(4),
         NameObject("/Rect"): ArrayObject([
-            FloatObject(position[0]), FloatObject(position[1]),
-            FloatObject(position[0] + box_size), FloatObject(position[1] + box_size)
+            FloatObject(position[0]),
+            FloatObject(position[1]),
+            FloatObject(position[0] + box_size),
+            FloatObject(position[1] + box_size)
         ]),
         NameObject("/C"): ArrayObject([
             FloatObject(0),  # Blue box
@@ -157,8 +164,13 @@ def create_number_annotation(writer: PdfWriter, page_num: int, number: int, posi
         ]),
         NameObject("/Contents"): createStringObject(str(number)),
         NameObject("/CA"): NumberObject(1),
-        NameObject("/Border"): ArrayObject([0, 0, 1]),
-        NameObject("/T"): createStringObject(f"Section {number}")
+        NameObject("/Border"): ArrayObject([
+            NumberObject(0),
+            NumberObject(0),
+            NumberObject(1)
+        ]),
+        NameObject("/T"): createStringObject(f"Section {number}"),
+        NameObject("/F"): NumberObject(4)
     })
     return number_box
 
@@ -191,11 +203,18 @@ def create_summary_annotation(writer: PdfWriter, page_num: int, number: int, sum
         ]),
         NameObject("/DA"): createStringObject("/Helv 10 Tf 0 0 0 rg"),  # Font settings
         NameObject("/Q"): NumberObject(0),  # Left-aligned
-        NameObject("/Border"): ArrayObject([0, 0, 1]),
+        NameObject("/Border"): ArrayObject([
+            NumberObject(0),
+            NumberObject(0),
+            NumberObject(1)
+        ]),
         NameObject("/BS"): DictionaryObject({
             NameObject("/Type"): NameObject("/Border"),
             NameObject("/W"): NumberObject(1),
             NameObject("/S"): NameObject("/S")
+        }),
+        NameObject("/AP"): DictionaryObject({
+            NameObject("/N"): None
         })
     })
     return annotation
@@ -256,6 +275,8 @@ async def process_pdf_with_summaries(pdf_file: io.BytesIO) -> io.BytesIO:
             if i in page_annotations:
                 if "/Annots" in writer.pages[i]:
                     existing_annots = writer.pages[i]["/Annots"]
+                    if isinstance(existing_annots, IndirectObject):
+                        existing_annots = existing_annots.get_object()
                     for annot in page_annotations[i]:
                         existing_annots.append(annot)
                 else:
