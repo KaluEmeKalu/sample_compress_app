@@ -1,7 +1,7 @@
 from typing import List, Dict, Any, Tuple
 import io
 import logging
-from PyPDF2 import PdfReader, PdfWriter
+from PyPDF2 import PdfReader, PdfWriter, PdfObject, FloatObject, ArrayObject, NumberObject, TextStringObject, DictionaryObject, NameObject
 import openai
 from django.conf import settings
 import os
@@ -113,21 +113,39 @@ async def summarize_text(text: str) -> str:
         logger.error(f"Error summarizing text: {str(e)}")
         return "Error generating summary"
 
-def create_annotation(writer: PdfWriter, page_num: int, text: str, rect: Tuple[float, float, float, float]) -> Dict:
+def create_annotation_dict(writer: PdfWriter, page_num: int, text: str, rect: Tuple[float, float, float, float]) -> DictionaryObject:
     """Create a PDF annotation dictionary."""
-    return {
-        '/Type': '/Annot',
-        '/Subtype': '/Text',
-        '/F': 4,  # Print the annotation
-        '/Contents': text,
-        '/Rect': [rect[0], rect[1], rect[0] + 200, rect[1] + 50],  # Position in the margin
-        '/P': writer.pages[page_num],
-        '/T': f'Summary {datetime.now().strftime("%H:%M:%S")}',
-        '/C': [1, 1, 0],  # Yellow color
-        '/CA': 1,  # Opacity
-        '/Border': [0, 0, 2],  # Border width
-        '/M': datetime.now().strftime("D:%Y%m%d%H%M%S"),
-    }
+    annotation = DictionaryObject()
+    
+    # Basic annotation properties
+    annotation.update({
+        NameObject("/Type"): NameObject("/Annot"),
+        NameObject("/Subtype"): NameObject("/Text"),
+        NameObject("/F"): NumberObject(4),
+        NameObject("/Contents"): TextStringObject(text),
+        NameObject("/Rect"): ArrayObject([
+            FloatObject(rect[0]),
+            FloatObject(rect[1]),
+            FloatObject(rect[0] + 200),
+            FloatObject(rect[1] + 50)
+        ]),
+        NameObject("/P"): writer.pages[page_num].get_object(),
+        NameObject("/T"): TextStringObject(f"Summary {datetime.now().strftime('%H:%M:%S')}"),
+        NameObject("/C"): ArrayObject([
+            FloatObject(1),
+            FloatObject(1),
+            FloatObject(0)
+        ]),
+        NameObject("/CA"): NumberObject(1),
+        NameObject("/Border"): ArrayObject([
+            NumberObject(0),
+            NumberObject(0),
+            NumberObject(2)
+        ]),
+        NameObject("/M"): TextStringObject(datetime.now().strftime("D:%Y%m%d%H%M%S"))
+    })
+    
+    return annotation
 
 async def process_pdf_with_summaries(pdf_file: io.BytesIO) -> io.BytesIO:
     """
@@ -169,18 +187,21 @@ async def process_pdf_with_summaries(pdf_file: io.BytesIO) -> io.BytesIO:
                 # Create annotation in the margin
                 margin_x = 50  # Left margin position
                 margin_y = section.position[1]  # Align with text vertically
-                annotation = create_annotation(
+                
+                # Create and add annotation
+                annotation = create_annotation_dict(
                     writer,
                     section.page,
                     section.summary,
                     (margin_x, margin_y, margin_x + 200, margin_y + 50)
                 )
                 
-                # Add annotation to the page
-                if '/Annots' in writer.pages[section.page]:
-                    writer.pages[section.page]['/Annots'].append(annotation)
+                # Get the page's annotations array, creating it if it doesn't exist
+                page = writer.pages[section.page]
+                if "/Annots" in page:
+                    page[NameObject("/Annots")].append(annotation)
                 else:
-                    writer.pages[section.page]['/Annots'] = [annotation]
+                    page[NameObject("/Annots")] = ArrayObject([annotation])
         
         # Write the annotated PDF to a buffer
         output_buffer = io.BytesIO()
@@ -190,4 +211,5 @@ async def process_pdf_with_summaries(pdf_file: io.BytesIO) -> io.BytesIO:
         return output_buffer
     except Exception as e:
         logger.error(f"Error processing PDF: {str(e)}")
+        logger.error(f"Stack trace: {traceback.format_exc()}")
         raise Exception(f"Error processing PDF: {str(e)}")
