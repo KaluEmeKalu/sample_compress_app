@@ -2,7 +2,7 @@ from typing import List, Dict, Any, Tuple
 import io
 import logging
 from PyPDF2 import PdfReader, PdfWriter
-from PyPDF2.generic import FloatObject, ArrayObject, NumberObject, TextStringObject, DictionaryObject, NameObject
+from PyPDF2.generic import FloatObject, ArrayObject, NumberObject, TextStringObject, DictionaryObject, NameObject, createStringObject, IndirectObject
 import openai
 from django.conf import settings
 import os
@@ -11,12 +11,16 @@ import asyncio
 from functools import partial
 from datetime import datetime
 import traceback
+import sys
 
 # Load environment variables
 load_dotenv()
 
 # Configure OpenAI
 openai.api_key = os.getenv('OPENAI_API_KEY')
+
+# Increase recursion limit for PyPDF2
+sys.setrecursionlimit(10000)
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +106,8 @@ async def summarize_text(text: str) -> str:
         Summarized text
     """
     try:
-        response = await openai.chat.completions.acreate(
+        client = openai.AsyncOpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+        response = await client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "You are a helpful assistant that creates concise summaries of text. Keep summaries to 1-2 sentences."},
@@ -124,7 +129,7 @@ def create_annotation_dict(writer: PdfWriter, page_num: int, text: str, rect: Tu
         NameObject("/Type"): NameObject("/Annot"),
         NameObject("/Subtype"): NameObject("/Text"),
         NameObject("/F"): NumberObject(4),
-        NameObject("/Contents"): TextStringObject(text),
+        NameObject("/Contents"): createStringObject(text),
         NameObject("/Rect"): ArrayObject([
             FloatObject(rect[0]),
             FloatObject(rect[1]),
@@ -132,7 +137,7 @@ def create_annotation_dict(writer: PdfWriter, page_num: int, text: str, rect: Tu
             FloatObject(rect[1] + 50)
         ]),
         NameObject("/P"): writer.pages[page_num].get_object(),
-        NameObject("/T"): TextStringObject(f"Summary {datetime.now().strftime('%H:%M:%S')}"),
+        NameObject("/T"): createStringObject(f"Summary {datetime.now().strftime('%H:%M:%S')}"),
         NameObject("/C"): ArrayObject([
             FloatObject(1),
             FloatObject(1),
@@ -144,7 +149,7 @@ def create_annotation_dict(writer: PdfWriter, page_num: int, text: str, rect: Tu
             NumberObject(0),
             NumberObject(2)
         ]),
-        NameObject("/M"): TextStringObject(datetime.now().strftime("D:%Y%m%d%H%M%S"))
+        NameObject("/M"): createStringObject(datetime.now().strftime("D:%Y%m%d%H%M%S"))
     })
     
     return annotation
@@ -201,7 +206,10 @@ async def process_pdf_with_summaries(pdf_file: io.BytesIO) -> io.BytesIO:
                 # Get the page's annotations array, creating it if it doesn't exist
                 page = writer.pages[section.page]
                 if "/Annots" in page:
-                    page[NameObject("/Annots")].append(annotation)
+                    current_annots = page[NameObject("/Annots")]
+                    if isinstance(current_annots, IndirectObject):
+                        current_annots = current_annots.get_object()
+                    current_annots.append(annotation)
                 else:
                     page[NameObject("/Annots")] = ArrayObject([annotation])
         
