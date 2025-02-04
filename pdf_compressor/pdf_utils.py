@@ -5,7 +5,7 @@ from PyPDF2 import PdfReader, PdfWriter
 from PyPDF2.generic import (
     FloatObject, ArrayObject, NumberObject, TextStringObject, 
     DictionaryObject, NameObject, createStringObject, IndirectObject,
-    BooleanObject
+    BooleanObject, NullObject
 )
 import openai
 from django.conf import settings
@@ -139,7 +139,10 @@ def create_highlight_annotation(writer: PdfWriter, page_num: int, rect: Tuple[fl
             NumberObject(0),
             NumberObject(0),
             NumberObject(0)
-        ])
+        ]),
+        NameObject("/AP"): DictionaryObject({
+            NameObject("/N"): NullObject()
+        })
     })
     return highlight
 
@@ -170,7 +173,10 @@ def create_number_annotation(writer: PdfWriter, page_num: int, number: int, posi
             NumberObject(1)
         ]),
         NameObject("/T"): createStringObject(f"Section {number}"),
-        NameObject("/F"): NumberObject(4)
+        NameObject("/F"): NumberObject(4),
+        NameObject("/AP"): DictionaryObject({
+            NameObject("/N"): NullObject()
+        })
     })
     return number_box
 
@@ -214,7 +220,7 @@ def create_summary_annotation(writer: PdfWriter, page_num: int, number: int, sum
             NameObject("/S"): NameObject("/S")
         }),
         NameObject("/AP"): DictionaryObject({
-            NameObject("/N"): None
+            NameObject("/N"): NullObject()
         })
     })
     return annotation

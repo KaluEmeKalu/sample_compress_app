@@ -3,9 +3,13 @@ version: '3.8'
 services:
   web:
     build: .
-    command: python manage.py runserver 0.0.0.0:8000
+    command: >
+      bash -c "python manage.py migrate &&
+               python manage.py collectstatic --noinput &&
+               python manage.py runserver 0.0.0.0:8000"
     volumes:
       - .:/app
+      - static_volume:/app/staticfiles
     ports:
       - "8000:8000"
     environment:
@@ -15,3 +19,6 @@ services:
       - DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
       - PYTHONUNBUFFERED=1
     restart: unless-stopped
+
+volumes:
+  static_volume:
