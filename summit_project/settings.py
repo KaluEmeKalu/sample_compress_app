@@ -14,13 +14,8 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-development-ke
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DJANGO_DEBUG', 'False') == 'True'
 
-# Get allowed hosts from environment variable or default to localhost
-ALLOWED_HOSTS = [
-    'localhost',
-    '127.0.0.1',
-    'squid-app-nio8c.ondigitalocean.app',
-    '.ondigitalocean.app',  # Allow all subdomains
-]
+# Allow all hosts in debug mode, otherwise use environment variable
+ALLOWED_HOSTS = ['*'] if DEBUG else os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 # Application definition
 INSTALLED_APPS = [
@@ -101,6 +96,10 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'static'),
 ]
 
+# Create static directory if it doesn't exist
+os.makedirs(STATIC_ROOT, exist_ok=True)
+os.makedirs(os.path.join(BASE_DIR, 'static'), exist_ok=True)
+
 # WhiteNoise configuration
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
@@ -129,12 +128,15 @@ if not DEBUG:
     SECURE_HSTS_PRELOAD = True
     X_FRAME_OPTIONS = 'DENY'
 
-# CORS settings
-CORS_ALLOWED_ORIGINS = [
-    'http://localhost:8000',
-    'https://squid-app-nio8c.ondigitalocean.app',
-]
-CORS_ALLOW_CREDENTIALS = True
+# CORS settings - Allow all origins in debug mode
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
+else:
+    CORS_ALLOWED_ORIGINS = [
+        'http://localhost:8000',
+        'https://squid-app-nio8c.ondigitalocean.app',
+    ]
+    CORS_ALLOW_CREDENTIALS = True
 
 # File upload settings
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB
