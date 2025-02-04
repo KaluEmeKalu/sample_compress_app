@@ -119,20 +119,29 @@ async def summarize_text(text: str) -> str:
 def create_summary_sidebar(c: canvas.Canvas, summaries: List[Tuple[int, PDFSection]], page_height: float):
     """Create a sidebar with numbered summaries"""
     # Constants for layout
-    SIDEBAR_WIDTH = 160  # Even narrower sidebar to match reference
-    LEFT_MARGIN = 35  # Adjusted left margin
+    SIDEBAR_WIDTH = 140  # Narrower sidebar to match reference
+    LEFT_MARGIN = 40  # Increased left margin
     RIGHT_MARGIN = 15
-    TOP_MARGIN = 50  # Slightly less top margin
-    BOX_SIZE = 12  # Smaller number boxes
-    BOX_MARGIN = 8  # Less space before box
-    LINE_HEIGHT = 11  # Tighter line spacing
-    SECTION_SPACING = 12  # Less space between sections
-    TITLE_SIZE = 10  # Font size for titles
-    CONTENT_SIZE = 9  # Font size for content
+    TOP_MARGIN = 40  # Less top margin
+    BOX_SIZE = 10  # Smaller number boxes
+    BOX_MARGIN = 10  # More space before box
+    LINE_HEIGHT = 14  # More line spacing
+    SECTION_SPACING = 20  # More space between sections
+    TITLE_SIZE = 11  # Slightly larger titles
+    CONTENT_SIZE = 10  # Larger content
+    CORNER_RADIUS = 8  # Rounded corners for sidebar
     
-    # Draw white background for the sidebar
-    c.setFillColorRGB(1, 1, 1)  # Pure white
+    # Draw light gray background with rounded corners for the sidebar
+    c.setFillColorRGB(0.96, 0.96, 0.96)  # Very light gray
+    # Save state to restore after clipping
+    c.saveState()
+    # Create rounded rectangle path
+    p = c.beginPath()
+    p.roundRect(LEFT_MARGIN, TOP_MARGIN, SIDEBAR_WIDTH, page_height - (TOP_MARGIN + LEFT_MARGIN), CORNER_RADIUS)
+    c.clipPath(p)  # Clip to the rounded rectangle
+    c.setFillColorRGB(0.96, 0.96, 0.96)
     c.rect(LEFT_MARGIN, TOP_MARGIN, SIDEBAR_WIDTH, page_height - (TOP_MARGIN + LEFT_MARGIN), fill=1)
+    c.restoreState()
     
     # Start position for first summary
     y = page_height - (TOP_MARGIN + LINE_HEIGHT)
@@ -147,26 +156,32 @@ def create_summary_sidebar(c: canvas.Canvas, summaries: List[Tuple[int, PDFSecti
         content = parts[1].replace('Summary: ', '') if len(parts) > 1 else section.summary
         
         # Draw small square box with number
-        c.setFillColorRGB(0.15, 0.35, 0.7)  # Adjusted blue color to match reference
+        c.setFillColorRGB(0.1, 0.3, 0.6)  # Darker blue color from reference
         box_x = LEFT_MARGIN + BOX_MARGIN
         box_y = y - BOX_SIZE
+        # Save state for rounded box
+        c.saveState()
+        p = c.beginPath()
+        p.roundRect(box_x, box_y, BOX_SIZE, BOX_SIZE, 2)  # Slightly rounded corners
+        c.clipPath(p)
         c.rect(box_x, box_y, BOX_SIZE, BOX_SIZE, fill=1)
+        c.restoreState()
         
         # Draw number
         c.setFillColorRGB(1, 1, 1)  # White text
-        c.setFont("Helvetica-Bold", 8)  # Even smaller font for better fit
+        c.setFont("Times-Bold", 8)  # Slightly larger font for better visibility
         number = str(i + 1)
-        number_width = c.stringWidth(number, "Helvetica-Bold", 8)
+        number_width = c.stringWidth(number, "Times-Bold", 8)
         number_x = box_x + (BOX_SIZE - number_width) / 2
-        number_y = box_y + 3  # Adjusted for better vertical centering
+        number_y = box_y + 2.5  # Better vertical centering
         c.drawString(number_x, number_y, number)
         
         # Calculate text position
         text_x = LEFT_MARGIN + BOX_MARGIN + BOX_SIZE + 8  # Text starts after box
         
         # Draw title with proper alignment
-        c.setFillColorRGB(0.1, 0.1, 0.1)  # Slightly softer black
-        c.setFont("Helvetica-Bold", TITLE_SIZE)  # Use defined title font size
+        c.setFillColorRGB(0.2, 0.2, 0.2)  # Dark gray for better readability
+        c.setFont("Times-Bold", TITLE_SIZE)  # Bold Times for titles
         
         # Word wrap title
         wrapped_title = []
@@ -192,12 +207,12 @@ def create_summary_sidebar(c: canvas.Canvas, summaries: List[Tuple[int, PDFSecti
         # Add spacing between title and content
         y -= LINE_HEIGHT / 2
         
-        # Draw content
-        c.setFillColorRGB(0.3, 0.3, 0.3)  # Lighter gray for content
-        c.setFont("Helvetica", CONTENT_SIZE)  # Use defined content font size
+        # Draw content with proper styling
+        c.setFillColorRGB(0.4, 0.4, 0.4)  # Lighter gray for content
+        c.setFont("Times-Roman", CONTENT_SIZE)  # Use Times-Roman for a lighter look
         
-        # Add minimal spacing between title and content
-        y -= 6  # Reduced gap between title and content
+        # Add proper spacing between title and content
+        y -= LINE_HEIGHT * 1.2  # Slightly more space for better readability
         
         # Word wrap content with proper alignment
         wrapped_content = []
