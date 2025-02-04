@@ -15,7 +15,7 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-development-ke
 DEBUG = os.environ.get('DJANGO_DEBUG', 'False') == 'True'
 
 # Allow all hosts in debug mode, otherwise use environment variable
-ALLOWED_HOSTS = ['*'] if DEBUG else os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = ['*'] if DEBUG else os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1,squid-app-nio8c.ondigitalocean.app').split(',')
 
 # Application definition
 INSTALLED_APPS = [
