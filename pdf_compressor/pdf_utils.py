@@ -172,16 +172,10 @@ def create_summary_sidebar(c: canvas.Canvas, summaries: List[Tuple[int, PDFSecti
         wrapped_title = []
         current_line = ""
         max_width = SIDEBAR_WIDTH - (text_x - LEFT_MARGIN + 5)  # Slightly narrower for text
-        text_x = LEFT_MARGIN + TEXT_MARGIN
-        max_width = SIDEBAR_WIDTH - (TEXT_MARGIN + RIGHT_MARGIN)
-        
-        # Word wrap title
-        wrapped_title = []
-        current_line = ""
         
         for word in title.split():
             test_line = current_line + (" " if current_line else "") + word
-            if c.stringWidth(test_line, "Helvetica-Bold", TITLE_FONT_SIZE) <= max_width:
+            if c.stringWidth(test_line, "Helvetica-Bold", TITLE_SIZE) <= max_width:
                 current_line = test_line
             else:
                 if current_line:
@@ -212,7 +206,7 @@ def create_summary_sidebar(c: canvas.Canvas, summaries: List[Tuple[int, PDFSecti
         
         for word in content.split():
             test_line = current_line + (" " if current_line else "") + word
-            if c.stringWidth(test_line, "Helvetica", 10) <= max_width:
+            if c.stringWidth(test_line, "Helvetica", CONTENT_SIZE) <= max_width:
                 current_line = test_line
             else:
                 if current_line:
@@ -224,32 +218,10 @@ def create_summary_sidebar(c: canvas.Canvas, summaries: List[Tuple[int, PDFSecti
         # Draw wrapped content with minimal spacing
         for line in wrapped_content:
             c.drawString(text_x, y, line)  # Use same text_x for consistent alignment
-            y -= 10  # Very tight line spacing for content
+            y -= LINE_HEIGHT  # Use defined line height
         
-        # Add minimal space between sections
-        y -= 14  # Reduced space between sections to match reference
-        
-        # Word wrap content with improved spacing
-        wrapped_content = []
-        current_line = ""
-        
-        for word in content.split():
-            test_line = current_line + (" " if current_line else "") + word
-            if c.stringWidth(test_line, "Helvetica", CONTENT_FONT_SIZE) <= max_width:
-                current_line = test_line
-            else:
-                if current_line:
-                    wrapped_content.append(current_line)
-                current_line = word
-        if current_line:
-            wrapped_content.append(current_line)
-        
-        # Draw wrapped content with increased line spacing
-        for line in wrapped_content:
-            c.drawString(text_x, y, line)
-            y -= LINE_HEIGHT * 1.2  # Increased line spacing for better readability
-        
-        y -= SECTION_SPACING  # Add space between sections
+        # Add space between sections
+        y -= SECTION_SPACING  # Use defined section spacing
 
 def create_highlight_annotation(writer: PdfWriter, page_num: int, rect: Tuple[float, float, float, float]) -> DictionaryObject:
     """Create a highlight annotation"""
