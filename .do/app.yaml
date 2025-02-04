@@ -5,15 +5,17 @@ services:
     git:
       branch: main
       repo_clone_url: ${_REPO_URL}  # Will be replaced by actual repository URL
-    build_command: pip install -r requirements.txt
-    run_command: gunicorn summit_project.wsgi:application --bind 0.0.0.0:8080 --workers 3
+    build_command: |
+      apt-get update && apt-get install -y libmagic1 && \
+      pip install -r requirements.txt
+    run_command: gunicorn summit_project.wsgi:application --bind 0.0.0.0:8080 --workers 3 --log-level debug
     envs:
       - key: DJANGO_SECRET_KEY
         scope: RUN_TIME
         type: SECRET
       - key: DJANGO_DEBUG
         scope: RUN_TIME
-        value: "False"
+        value: "True"  # Temporarily enable debug mode
       - key: PYTHONUNBUFFERED
         scope: RUN_TIME
         value: "1"
@@ -26,6 +28,9 @@ services:
       - key: SECURE_SSL_REDIRECT
         scope: RUN_TIME
         value: "False"
+      - key: DJANGO_LOG_LEVEL
+        scope: RUN_TIME
+        value: "DEBUG"
     http_port: 8080
     instance_count: 1
     instance_size_slug: basic-xs
