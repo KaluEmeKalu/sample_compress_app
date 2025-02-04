@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Compression API</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>PDF Compression API</h1>
+        <p>This API provides PDF compression functionality. Send your PDF files to be compressed and receive an optimized version in return.</p>
+
+        <h2>Endpoint</h2>
+        <div class="endpoint">/api/compress/</div>
+
+        <h2>Method</h2>
+        <div class="method">POST</div>
+
+        <h2>Request Format</h2>
+        <p>Send a multipart/form-data request with the following parameter:</p>
+        <ul>
+            <li><code>pdf_file</code>: The PDF file to be compressed</li>
+        </ul>
+
+        <h2>Example Request</h2>
+        <pre>curl -X POST \
+  -F "pdf_file=@/path/to/your/file.pdf" \
+  http://localhost:8000/api/compress/</pre>
+
+        <h2>Response</h2>
+        <p>On success, receives the compressed PDF file with <code>Content-Type: application/pdf</code></p>
+
+        <h2>Error Responses</h2>
+        <ul>
+            <li class="error"><code>400 Bad Request</code>: Invalid file type or missing file</li>
+            <li class="error"><code>500 Internal Server Error</code>: Error during compression</li>
+        </ul>
+
+        <h2>File Size Limits</h2>
+        <p>Maximum file size: <code>10MB</code></p>
+
+        <h2>Try it out</h2>
+        <form action="/api/compress/" method="post" enctype="multipart/form-data">
+            <p>
+                <input type="file" name="pdf_file" accept=".pdf" required>
+                <button type="submit">Compress PDF</button>
+            </p>
+        </form>
+    </div>
+</body>
+</html>
