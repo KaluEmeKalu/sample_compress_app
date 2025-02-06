@@ -7,12 +7,13 @@ from rest_framework.request import Request
 from django.http import HttpResponse
 from .serializers import PDFFileSerializer
 from .utils import compress_pdf
-from .pdf_utils import process_pdf_with_summaries
+from .summit_api import SummitAPI
 import logging
 import traceback
 import io
 from typing import Union, Optional
 import asyncio
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -222,13 +223,14 @@ class PDFSummarizerView(APIView):
                 pdf_file = io.BytesIO(file_content)
                 pdf_file.name = request.FILES['pdf_file'].name
                 
-                # Process PDF and generate summaries synchronously
-                annotated_pdf = run_async(process_pdf_with_summaries(pdf_file))
+                # Process PDF using SummitAPI
+                api = SummitAPI(pdf_file.name)
+                result = run_async(api.run(file_content, enable_auto_highlight=True))
                 logger.info("PDF summarization successful")
                 
                 # Return the annotated PDF as a download
                 response = HttpResponse(
-                    annotated_pdf.getvalue(),
+                    result.result,
                     content_type='application/pdf'
                 )
                 response['Content-Disposition'] = f'attachment; filename="annotated_{pdf_file.name}"'
