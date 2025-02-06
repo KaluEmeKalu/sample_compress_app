@@ -18,3 +18,10 @@ yarl==1.9.4
 httpx>=0.26.0
 reportlab>=4.0.9
 Pillow>=10.2.0  # Required by reportlab
+PyMuPDF==1.23.8  # For PDF manipulation with fitz
+pandas>=2.2.0  # For data manipulation
+numpy>=1.26.0  # Required by pandas
+boto3>=1.34.0  # For AWS Bedrock integration
+botocore>=1.34.0  # Required by boto3
+psycopg2-binary==2.9.9  # PostgreSQL adapter
+dj-database-url==2.1.0  # Database URL configuration

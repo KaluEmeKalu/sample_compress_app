@@ -26,12 +26,11 @@ COPY . .
 # Create static directory
 RUN mkdir -p /app/staticfiles
 
-# Collect static files and run migrations
+# Collect static files
 RUN python manage.py collectstatic --noinput
-RUN python manage.py migrate
 
 # Expose port
-EXPOSE 8000
+EXPOSE 8080
 
 # Run the application
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+CMD ["gunicorn", "summit_project.wsgi:application", "--bind", "0.0.0.0:8080", "--workers", "3", "--timeout", "120"]
