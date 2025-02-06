@@ -4,11 +4,25 @@ services:
   - name: web
     git:
       branch: main
-      repo_clone_url: ${_REPO_URL}  # Will be replaced by actual repository URL
-    build_command: |
-      # Install system dependencies and Python packages
-      pip install -r requirements.txt
-    run_command: gunicorn summit_project.wsgi:application --bind 0.0.0.0:8080 --workers 3 --log-level info --timeout 120
+      repo_clone_url: ${_REPO_URL}
+    build_command: pip install -r requirements.txt
+    run_command: gunicorn summit_project.wsgi:application --bind 0.0.0.0:8080 --workers $((2 * $(nproc) + 1)) --threads 4 --worker-class gthread --worker-tmp-dir /dev/shm --max-requests 1000 --max-requests-jitter 100 --timeout 120 --keep-alive 5 --log-level info
+    instance_count: 2  # Start with 2 instances
+    instance_size_slug: professional-xs
+    auto_scale:
+      min_instances: 2
+      max_instances: 10
+      cpu_percentage: 70
+      mem_percentage: 80
+    alert_policy:
+      name: "High Resource Usage"
+      rules:
+        - condition: CPU > 70%
+          window: 5m
+          count: 3
+        - condition: MEM > 80%
+          window: 5m
+          count: 3
     envs:
       - key: DJANGO_SECRET_KEY
         scope: RUN_TIME
@@ -53,9 +67,28 @@ services:
       - key: POSTGRES_PORT
         scope: RUN_TIME
         value: "${db.PORT}"
+      # Redis configuration
+      - key: REDIS_URL
+        scope: RUN_TIME
+        value: "${redis.URL}"
+      # DigitalOcean Spaces configuration
+      - key: SPACES_ACCESS_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: SPACES_SECRET_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: SPACES_BUCKET_NAME
+        scope: RUN_TIME
+        value: "summit-pdf-api"
+      - key: SPACES_ENDPOINT_URL
+        scope: RUN_TIME
+        value: "https://sfo3.digitaloceanspaces.com"
+      # Sentry configuration
+      - key: SENTRY_DSN
+        scope: RUN_TIME
+        type: SECRET
     http_port: 8080
-    instance_count: 1
-    instance_size_slug: professional-xs  # Increased memory for PDF processing
     health_check:
       http_path: /
       initial_delay_seconds: 30
@@ -66,7 +99,18 @@ services:
     routes:
       - path: /
     source_dir: /
-    databases:
-      - name: db
-        engine: PG
-        production: true
+
+databases:
+  - engine: PG
+    name: db
+    production: true
+    cluster_name: pdf-db-cluster
+    version: "15"
+    size: db-s-2vcpu-4gb
+
+  - engine: REDIS
+    name: redis
+    production: true
+    version: "7"
+    size: db-s-1vcpu-1gb
+    eviction_policy: volatile-lru
